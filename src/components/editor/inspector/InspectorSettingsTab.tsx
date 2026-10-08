@@ -1,3 +1,4 @@
+import { MAX_PALETTE_BASE_COUNT } from '../../../visualization-colors/constants'
 import { SliderControl } from '../../ui/slider-control'
 import { Button } from '../../ui/button'
 import { useEditorStore } from '../../../store/editorStore'
@@ -39,7 +40,7 @@ export function InspectorSettingsTab() {
             label="Countries (categories)"
             value={provParams.categoryCount ?? 6}
             min={2}
-            max={16}
+            max={MAX_PALETTE_BASE_COUNT}
             step={1}
             onChange={(v) => regenerateAllData({ categoryCount: v })}
           />

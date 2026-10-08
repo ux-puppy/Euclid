@@ -18,6 +18,8 @@ type SliderControlProps = {
 type SliderVisualState = 'default' | 'hover' | 'pressed' | 'typing'
 
 const DRAG_THRESHOLD_PX = 3
+/** Min interval for parent/chart updates while dragging (slider UI stays local + immediate). */
+const DRAG_COMMIT_MS = 48
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n))
@@ -110,41 +112,115 @@ export function SliderControl({
   const [hovered, setHovered] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [editing, setEditing] = useState(false)
+  /** Local value while dragging — avoids store/chart work on every pointer move. */
+  const [dragValue, setDragValue] = useState<number | null>(null)
   const format = formatValue ?? ((n: number) => formatSliderValue(n, step))
   const [text, setText] = useState(() => format(value))
 
   const trackRef = useRef<HTMLDivElement>(null)
   const valueInputRef = useRef<HTMLInputElement>(null)
+  const pendingDragCommit = useRef<number | null>(null)
+  const lastDragCommitAt = useRef(0)
+  const dragCommitTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pointerSession = useRef<{
     pointerId: number
     startX: number
     dragged: boolean
   } | null>(null)
 
+  const displayValue = dragValue ?? value
   const visual = resolveVisualState(editing, dragging, hovered)
-  const ratio = valueRatio(value, min, max)
+  const ratio = valueRatio(displayValue, min, max)
 
   useEffect(() => {
-    if (!editing) setText(format(value))
-  }, [value, editing, format])
+    if (!editing && dragValue === null) setText(format(value))
+  }, [value, editing, dragValue, format])
 
-  const setValue = useCallback(
-    (next: number) => {
-      onChange(clamp(snapToStep(next, step, min), min, max))
+  const normalize = useCallback(
+    (next: number) => clamp(snapToStep(next, step, min), min, max),
+    [min, max, step],
+  )
+
+  const commitToParent = useCallback(
+    (v: number) => {
+      onChange(v)
     },
-    [min, max, onChange, step],
+    [onChange],
+  )
+
+  const clearDragCommitSchedule = useCallback(() => {
+    if (dragCommitTimer.current != null) {
+      clearTimeout(dragCommitTimer.current)
+      dragCommitTimer.current = null
+    }
+  }, [])
+
+  const flushDragCommit = useCallback(() => {
+    clearDragCommitSchedule()
+    const v = pendingDragCommit.current
+    if (v != null) {
+      commitToParent(v)
+      lastDragCommitAt.current = performance.now()
+    }
+  }, [clearDragCommitSchedule, commitToParent])
+
+  const scheduleDragCommit = useCallback(
+    (v: number) => {
+      pendingDragCommit.current = v
+      const now = performance.now()
+      const elapsed = now - lastDragCommitAt.current
+      if (elapsed >= DRAG_COMMIT_MS) {
+        commitToParent(v)
+        lastDragCommitAt.current = now
+        return
+      }
+      if (dragCommitTimer.current != null) return
+      dragCommitTimer.current = setTimeout(() => {
+        dragCommitTimer.current = null
+        const pending = pendingDragCommit.current
+        if (pending != null) {
+          commitToParent(pending)
+          lastDragCommitAt.current = performance.now()
+        }
+      }, DRAG_COMMIT_MS - elapsed)
+    },
+    [commitToParent],
+  )
+
+  useEffect(() => () => clearDragCommitSchedule(), [clearDragCommitSchedule])
+
+  const setValueLive = useCallback(
+    (next: number) => {
+      const v = normalize(next)
+      clearDragCommitSchedule()
+      commitToParent(v)
+      setDragValue(null)
+      pendingDragCommit.current = null
+      setText(format(v))
+    },
+    [clearDragCommitSchedule, commitToParent, format, normalize],
+  )
+
+  const setValueWhileDragging = useCallback(
+    (next: number) => {
+      const v = normalize(next)
+      setDragValue(v)
+      setText(format(v))
+      scheduleDragCommit(v)
+    },
+    [format, normalize, scheduleDragCommit],
   )
 
   const valueFromClientX = useCallback(
     (clientX: number) => {
       const track = trackRef.current
-      if (!track) return value
+      if (!track) return displayValue
       const rect = track.getBoundingClientRect()
-      if (rect.width <= 0) return value
+      if (rect.width <= 0) return displayValue
       const t = clamp((clientX - rect.left) / rect.width, 0, 1)
       return min + t * (max - min)
     },
-    [max, min, value],
+    [displayValue, max, min],
   )
 
   const commitText = () => {
@@ -158,8 +234,7 @@ export function SliderControl({
       setText(format(value))
       return
     }
-    setValue(n)
-    setText(format(clamp(snapToStep(n, step, min), min, max)))
+    setValueLive(n)
   }
 
   const enterValueEntry = useCallback(() => {
@@ -179,6 +254,12 @@ export function SliderControl({
 
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId)
+    }
+
+    if (wasDrag) {
+      flushDragCommit()
+      pendingDragCommit.current = null
+      setDragValue(null)
     }
 
     if (!wasDrag && !readOnly) {
@@ -214,7 +295,7 @@ export function SliderControl({
       }
     }
 
-    setValue(valueFromClientX(e.clientX))
+    setValueWhileDragging(valueFromClientX(e.clientX))
   }
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -224,15 +305,15 @@ export function SliderControl({
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') delta = -step
     else if (e.key === 'PageUp') delta = step * 10
     else if (e.key === 'PageDown') delta = -step * 10
-    else if (e.key === 'Home') setValue(min)
-    else if (e.key === 'End') setValue(max)
+    else if (e.key === 'Home') setValueLive(min)
+    else if (e.key === 'End') setValueLive(max)
     else if (e.key === 'Enter') {
       enterValueEntry()
       return
     } else return
 
     e.preventDefault()
-    if (e.key !== 'Home' && e.key !== 'End') setValue(value + delta)
+    if (e.key !== 'Home' && e.key !== 'End') setValueLive(displayValue + delta)
   }
 
   const fillWidth = ratio <= 0 ? '2px' : `${ratio * 100}%`
@@ -252,7 +333,7 @@ export function SliderControl({
       aria-label={label}
       aria-valuemin={min}
       aria-valuemax={max}
-      aria-valuenow={value}
+      aria-valuenow={displayValue}
       aria-readonly={readOnly || undefined}
       className={cn(
         'relative box-border h-[30px] w-full min-w-0 overflow-hidden rounded-lg border border-transparent px-2 py-1.5 outline-none',
@@ -278,7 +359,7 @@ export function SliderControl({
         aria-hidden
         className={cn(
           'pointer-events-none absolute inset-y-0 left-0 top-1/2 box-border h-[31px] -translate-y-1/2 border-r-2 border-solid',
-          'transition-[width,opacity,background-color,border-color] duration-100',
+          dragging ? 'transition-none' : 'transition-[width,opacity,background-color,border-color] duration-100',
           activeFillBg,
           handleBorder[fillVisual],
           !showFill && 'opacity-0',
@@ -286,7 +367,7 @@ export function SliderControl({
         style={{ width: fillWidth, minWidth: ratio > 0 ? undefined : 0 }}
       />
 
-      <div className="pointer-events-none relative grid h-full min-w-0 grid-cols-[3fr_1fr] items-center gap-[10px] text-sm leading-normal">
+      <div className="pointer-events-none relative grid h-full min-w-0 -translate-y-px grid-cols-[3fr_1fr] items-center gap-[10px] text-sm leading-normal">
         <span
           className={cn(
             'min-w-0 truncate font-medium transition-colors duration-100',

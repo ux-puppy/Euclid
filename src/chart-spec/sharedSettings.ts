@@ -37,6 +37,9 @@ export function pickSharedChartSettings(spec: ChartSpec): SharedChartSettings {
         assignments: spec.colors.visualization.assignments
           ? { ...spec.colors.visualization.assignments }
           : {},
+        accessibility: spec.colors.visualization.accessibility
+          ? { ...spec.colors.visualization.accessibility }
+          : undefined,
       },
     },
     geometry: { ...spec.geometry },
@@ -82,6 +85,9 @@ export function applySharedChartSettings(spec: ChartSpec, shared: SharedChartSet
       assignments: shared.colors.visualization.assignments
         ? { ...shared.colors.visualization.assignments }
         : {},
+      accessibility: shared.colors.visualization.accessibility
+        ? { ...shared.colors.visualization.accessibility }
+        : undefined,
     },
   }
   spec.geometry = { ...shared.geometry }

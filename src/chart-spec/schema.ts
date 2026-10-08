@@ -96,6 +96,10 @@ const visualizationPaletteSchema = z.object({
     })
     .optional(),
 
+  hueLayout: z.enum(['greedy', 'even']).optional(),
+
+  paletteRevision: z.number().int().min(1).optional(),
+
   variation: z.object({
 
     property: z.enum(['lightness', 'chroma', 'hue', 'lightnessChroma']),
@@ -110,11 +114,29 @@ const visualizationPaletteSchema = z.object({
 
   }),
 
-  maxBaseColors: z.literal(12),
+  maxBaseColors: z.number().int().min(2).max(32).optional(),
+
+  excessColorHandling: z
+    .object({
+      enabled: z.boolean(),
+      activateAfter: z.number().int().min(2).max(32),
+      mode: z.enum(['repeatWithShift', 'lightness', 'chroma', 'hue']),
+      shiftDegrees: z.number().min(0).max(360),
+      step: z.number().min(0.02).max(0.5),
+      opacityStep: z.number().min(0).max(0.35),
+    })
+    .optional(),
 
   hierarchyMode: z.enum(['globalDepth', 'perBranch']),
 
   assignments: z.record(z.string(), z.number()).optional(),
+
+  accessibility: z
+    .object({
+      minRatioOnBackground: z.number().min(1).max(21),
+      minRatioOnBarText: z.number().min(1).max(21),
+    })
+    .optional(),
 
 })
 

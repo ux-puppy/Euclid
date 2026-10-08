@@ -1,11 +1,22 @@
+import { resolveExcessColorHandling } from './defaults'
 import type {
+  BaseVisualizationColor,
   ChartTheme,
+  ExcessColorMode,
   OklchColor,
   VariationDirection,
   VariationProperty,
   VisualizationPaletteConfig,
 } from './types'
-import { hexFromOklchTuple, hexWithAlpha, normalizeHue, oklchColorAt } from './oklch'
+import { templateHueForPaletteSlot } from './paletteGenerator'
+import { themedHexFromHue } from './perceptionColor'
+import {
+  hexFromOklchTuple,
+  hexWithAlpha,
+  normalizeHue,
+  oklchColorAt,
+  oklchFromHex,
+} from './oklch'
 import type { OpacityVariationDirection } from './types'
 
 function themeLc(
@@ -21,12 +32,66 @@ export function baseThemedHex(
   config: VisualizationPaletteConfig,
   theme: ChartTheme,
 ): string {
-  const { l, c } = themeLc(config, theme)
-  const ok = oklchColorAt(l, c, hue)
-  return hexFromOklchTuple(ok)
+  return themedHexFromHue(hue, config, theme)
 }
 
-function applyVariation(
+function excessVariationProperty(
+  mode: ExcessColorMode,
+): 'lightness' | 'chroma' | 'hue' | null {
+  if (mode === 'lightness' || mode === 'chroma' || mode === 'hue') return mode
+  return null
+}
+
+function themedOklchFromSlotHue(
+  slotHue: number,
+  config: VisualizationPaletteConfig,
+  theme: ChartTheme,
+): OklchColor {
+  const hex = themedHexFromHue(slotHue, config, theme)
+  const fromHex = oklchFromHex(hex)
+  if (fromHex) return { l: fromHex.l, c: fromHex.c, h: fromHex.h }
+  const { l, c } = themeLc(config, theme)
+  return { l, c, h: slotHue }
+}
+
+/** Themed slot color (brightness/chroma) first, then excess shift / variation / opacity. */
+export function hexFromBaseVisualizationColor(
+  base: BaseVisualizationColor,
+  config: VisualizationPaletteConfig,
+  theme: ChartTheme,
+  colorCount: number,
+): string {
+  const slot = base.paletteSlot ?? base.index
+  const slotHue = templateHueForPaletteSlot(slot, config, colorCount)
+  const level = base.excessLevel ?? 0
+
+  if (level <= 0) {
+    return themedHexFromHue(slotHue, config, theme)
+  }
+
+  const excess = resolveExcessColorHandling(config)
+  let ok = themedOklchFromSlotHue(slotHue, config, theme)
+
+  if (excess.mode === 'repeatWithShift') {
+    ok = { ...ok, h: normalizeHue(ok.h + level * excess.shiftDegrees) }
+  } else {
+    const prop = excessVariationProperty(excess.mode)
+    if (prop) {
+      ok = applyVariation(ok, level, prop, excess.step, config.variation.direction)
+    }
+  }
+
+  let hex = hexFromOklchTuple(ok)
+  if (excess.opacityStep > 0) {
+    hex = hexWithAlpha(
+      hex,
+      alphaForLevel(level, excess.opacityStep, config.variation.opacityDirection),
+    )
+  }
+  return hex
+}
+
+export function applyVariation(
   base: OklchColor,
   level: number,
   property: VariationProperty,
@@ -58,7 +123,7 @@ function applyVariation(
   return { l: clamped.l, c: clamped.c, h: clamped.h }
 }
 
-function alphaForLevel(
+export function alphaForLevel(
   level: number,
   opacityStep: number,
   opacityDirection: OpacityVariationDirection,

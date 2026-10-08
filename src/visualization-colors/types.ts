@@ -10,6 +10,10 @@ export type BaseVisualizationColor = {
   lightness: number
   chroma: number
   oklch: OklchColor
+  /** >0 when excess handling applied OKLCH / alpha variation. */
+  excessLevel?: number
+  /** Source slot in the first palette set (excess handling). */
+  paletteSlot?: number
 }
 
 export type VariationProperty = 'lightness' | 'chroma' | 'hue' | 'lightnessChroma'
@@ -24,6 +28,24 @@ export type VariationDirection =
 export type OpacityVariationDirection = 'decrease' | 'increase'
 
 export type HierarchyColorMode = 'globalDepth' | 'perBranch'
+
+/** How base hues are picked on the wheel before key rotation. */
+export type HueLayout = 'greedy' | 'even'
+
+/** Behavior for palette indices beyond `activateAfter` (when handling is enabled). */
+export type ExcessColorMode = 'repeatWithShift' | 'lightness' | 'chroma' | 'hue'
+
+export type ExcessColorHandling = {
+  enabled: boolean
+  /** Feature applies to color index ≥ this count (2–32). */
+  activateAfter: number
+  mode: ExcessColorMode
+  /** Hue offset per repeat cycle when mode is `repeatWithShift`. */
+  shiftDegrees: number
+  /** Same semantics as step variants (lightness / chroma / hue modes). */
+  step: number
+  opacityStep: number
+}
 
 /** Relative influence of each OKLCH axis when picking maximally separated hues. */
 export type OklchDistanceWeights = {
@@ -44,6 +66,12 @@ export type BaseCorrection = {
   chromaCorrection: number
 }
 
+/** User-defined minimum WCAG contrast ratios (not tied to AA/AAA presets). */
+export type AccessibilityContrastThresholds = {
+  minRatioOnBackground: number
+  minRatioOnBarText: number
+}
+
 export type VisualizationPaletteConfig = {
   startHue: number
   base: BaseCorrection
@@ -53,6 +81,10 @@ export type VisualizationPaletteConfig = {
   darkMode: OklchLc
   /** Per-axis weighting for perceptual distance when selecting hues. */
   distanceWeights: OklchDistanceWeights
+  /** Greedy farthest-point hues vs equal 360°/n spacing (see also separation slider). */
+  hueLayout: HueLayout
+  /** Bumped when hue layout semantics change; used to migrate legacy autosave. */
+  paletteRevision?: number
   variation: {
     property: VariationProperty
     step: number
@@ -61,9 +93,12 @@ export type VisualizationPaletteConfig = {
     opacityStep: number
     opacityDirection: OpacityVariationDirection
   }
-  maxBaseColors: 12
+  /** @deprecated Synced from `excessColorHandling.activateAfter` when enabled; kept for autosave. */
+  maxBaseColors: number
+  excessColorHandling?: ExcessColorHandling
   hierarchyMode: HierarchyColorMode
   assignments?: Record<string, number>
+  accessibility?: AccessibilityContrastThresholds
 }
 
 export type ChartTheme = 'light' | 'dark'

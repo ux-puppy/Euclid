@@ -1,8 +1,8 @@
-/** OKLCH targets when correction = 1 (full normalization). */
+/** OKLCH template L/C when perception correction = 100% (full normalization). */
 export const BASE_LIGHTNESS_TARGET = 0.72
 export const BASE_CHROMA_TARGET = 0.12
 
-/** Values when correction = 0 (no pull toward normalized palette). */
+/** Template L/C when perception correction = 0% (hue picking only; output uses standard HSL). */
 export const BASE_LIGHTNESS_UNCORRECTED = 0.5
 export const BASE_CHROMA_UNCORRECTED = 0.02
 
