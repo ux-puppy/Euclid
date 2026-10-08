@@ -1,5 +1,6 @@
+import { labelOnFill } from '../../accessibility/contrast'
 import { resolveSurfaceForTheme } from '../../chart-spec/surfaceColors'
-import type { ChartSpec } from '../../chart-spec/types'
+import type { BarChartSpec } from '../../chart-spec/types'
 import { barLabelFields } from '../../data/format'
 import { resolveVisualizationColors } from '../../visualization-colors/resolve'
 import type { ChartTheme } from '../../visualization-colors/types'
@@ -8,13 +9,15 @@ import { hierarchyRowAnimProgress, treeLayoutSectionProgress } from './treeRowAn
 import type { SceneGraph } from './types'
 import { barStrokeForState } from './barInteractionStyle'
 import { isValueLerpActive, resolveBarWidth, type ValueAnimState } from './valueAnim'
+import { attachBarValueColorLegend, barFillForValue } from './valueBarColors'
+import { isBarValueColorEncoding } from '../../chart-spec/types'
 
-function maxTabularValue(spec: ChartSpec): number {
+function maxTabularValue(spec: BarChartSpec): number {
   if (spec.data.shape !== 'tabular') return 1
   return Math.max(...spec.data.series.flatMap((s) => s.values), 0.01)
 }
 
-function listRowMetrics(spec: ChartSpec): {
+function listRowMetrics(spec: BarChartSpec): {
   barThickness: number
   rowSlot: number
   rowStride: number
@@ -47,7 +50,7 @@ function resolveSceneHeight(
 }
 
 export function computeListLayout(
-  spec: ChartSpec,
+  spec: BarChartSpec,
   theme: ChartTheme,
   hoverId: string | null,
   selectId: string | null,
@@ -64,7 +67,10 @@ export function computeListLayout(
 
   const { layout, labels } = spec
   const surface = resolveSurfaceForTheme(spec.colors, theme)
-  const viz = resolveVisualizationColors(spec.colors.visualization, spec, theme)
+  const valueColors = isBarValueColorEncoding(spec.colors)
+  const viz = valueColors
+    ? null
+    : resolveVisualizationColors(spec.colors.visualization, spec, theme)
   const { barThickness, rowSlot, rowStride } = listRowMetrics(spec)
   const contentWidth = layout.width - layout.padding.left - layout.padding.right
 
@@ -77,6 +83,8 @@ export function computeListLayout(
     height: typeof layout.height === 'number' ? layout.height : 400,
     background: surface.background,
     barRows: [],
+    heatmapCells: [],
+    heatmapColorLegend: null,
     groupTitles: [],
     axes: [],
     gridLines: [],
@@ -115,7 +123,7 @@ export function computeListLayout(
         const barW = resolveBarWidth(id, targetW, loadP, valueAnim)
         const state =
           selectId === id ? 'selected' : hoverId === id ? 'hover' : 'default'
-        const fill = viz.colorForSeriesIndex(si)
+        const fill = valueColors ? barFillForValue(spec, value) : viz!.colorForSeriesIndex(si)
 
         const rowY = y
         const barY = rowY + (rowSlot - barThickness) / 2
@@ -142,6 +150,7 @@ export function computeListLayout(
           labelX: barX + labels.insetX,
           labelValueText: labels.show ? labelFields.valueText : undefined,
           labelNameText: labels.show ? labelFields.nameText : undefined,
+          labelColor: valueColors ? labelOnFill(fill) : undefined,
           state,
           progress: animProgress,
         })
@@ -163,6 +172,16 @@ export function computeListLayout(
     })
 
     scene.height = resolveSceneHeight(layout.height, y + layout.padding.bottom)
+    if (valueColors && spec.legend.show && spec.legend.position === 'bottom') {
+      const legendW = Math.min(contentWidth, 280)
+      attachBarValueColorLegend(
+        scene,
+        spec,
+        layout.padding.left + (contentWidth - legendW) / 2,
+        scene.height - layout.padding.bottom - spec.legend.fontSize - 14,
+        legendW,
+      )
+    }
     return scene
   }
 
@@ -283,12 +302,14 @@ export function computeListLayout(
     const barW = resolveBarWidth(id, targetW, loadP, valueAnim)
     const state =
       selectId === id ? 'selected' : hoverId === id ? 'hover' : 'default'
-    const depthColor = viz.colorForTreeRow({
-      depth: row.depth,
-      depthInBranch: row.depthInBranch,
-      branchRootId: row.branchRootId,
-    })
-    const fill = row.color ?? depthColor
+    const fill = valueColors
+      ? barFillForValue(spec, row.value)
+      : row.color ??
+        viz!.colorForTreeRow({
+          depth: row.depth,
+          depthInBranch: row.depthInBranch,
+          branchRootId: row.branchRootId,
+        })
 
     const rowY = slotTops[rowIndex]! - shrinkBelowRow(rowIndex)
     const barY = rowY + (rowSlot - barThickness) / 2
@@ -320,6 +341,7 @@ export function computeListLayout(
       labelX: barX + labels.insetX,
       labelValueText: labelFields?.valueText,
       labelNameText: labelFields?.nameText,
+      labelColor: valueColors ? labelOnFill(fill) : undefined,
       depth: row.depth,
       hasChildren: row.hasChildren,
       expanded: row.expanded,
@@ -350,5 +372,15 @@ export function computeListLayout(
     rows.length > 0 ? slotCursor - totalShrink : layout.padding.top
 
   scene.height = resolveSceneHeight(layout.height, contentBottom + layout.padding.bottom)
+  if (valueColors && spec.legend.show && spec.legend.position === 'bottom') {
+    const legendW = Math.min(contentWidth, 280)
+    attachBarValueColorLegend(
+      scene,
+      spec,
+      layout.padding.left + (contentWidth - legendW) / 2,
+      scene.height - layout.padding.bottom - spec.legend.fontSize - 14,
+      legendW,
+    )
+  }
   return scene
 }

@@ -8,25 +8,20 @@ import {
 import { cn } from '../../lib/utils'
 import { OverlayScrollArea } from '../ui/overlay-scroll-area'
 import { useEditorStore } from '../../store/editorStore'
-import type { ChartVariant } from '../../chart-spec/types'
+import type { EditorChartId } from '../../chart-spec/types'
+import { CHART_LABELS } from '../../store/editorStore'
 
-const variants: { id: ChartVariant; label: string }[] = [
-  { id: 'classic', label: 'Bar Chart' },
-  { id: 'breakdown', label: 'Breakdown' },
-  { id: 'hierarchy', label: 'Hierarchy' },
-]
+const charts: EditorChartId[] = ['classic', 'breakdown', 'hierarchy', 'heatmap']
 
-type NavSidebarProps = {
-  width: number
-}
+const NAV_WIDTH_PX = 177
 
-export function NavSidebar({ width }: NavSidebarProps) {
-  const variant = useEditorStore((s) => s.spec.variant)
-  const selectVariant = useEditorStore((s) => s.selectVariant)
+export function NavSidebar() {
+  const selectedChart = useEditorStore((s) => s.selectedChart)
+  const selectChart = useEditorStore((s) => s.selectChart)
 
   return (
     <aside
-      style={{ width }}
+      style={{ width: NAV_WIDTH_PX }}
       className="shrink-0 flex flex-col h-full min-h-0 overflow-hidden p-2"
     >
       <OverlayScrollArea
@@ -39,19 +34,19 @@ export function NavSidebar({ width }: NavSidebarProps) {
               <span className="text-sm font-medium text-foreground/50">Euclid</span>
             </div>
             <div className="space-y-0.5">
-              {variants.map((v) => (
+              {charts.map((id) => (
                 <button
-                  key={v.id}
+                  key={id}
                   type="button"
-                  onClick={() => selectVariant(v.id)}
+                  onClick={() => selectChart(id)}
                   className={cn(
                     'w-full text-left h-[30px] px-2 rounded-[6px] text-sm font-medium transition-colors',
-                    variant === v.id
-                      ? 'bg-accent text-foreground'
+                    selectedChart === id
+                      ? 'bg-segment-active text-segment-active-fg'
                       : 'text-foreground/50 hover:text-foreground/70 hover:bg-control-hover',
                   )}
                 >
-                  {v.label}
+                  {CHART_LABELS[id]}
                 </button>
               ))}
               <button
@@ -61,14 +56,6 @@ export function NavSidebar({ width }: NavSidebarProps) {
                 className="w-full text-left h-[30px] px-2 rounded-[6px] text-sm font-medium text-muted-foreground/80 cursor-not-allowed"
               >
                 Pie Chart
-              </button>
-              <button
-                type="button"
-                disabled
-                title="Coming soon"
-                className="w-full text-left h-[30px] px-2 rounded-[6px] text-sm font-medium text-muted-foreground/80 cursor-not-allowed"
-              >
-                Heatmap
               </button>
             </div>
           </div>

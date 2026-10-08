@@ -9,11 +9,11 @@ import {
 import { computeLayout } from '../../layout/bar/computeLayout'
 import { computeAnimProgress } from '../../render/animation'
 import { isTreeLayoutAnimating } from '../../layout/bar/treeRowAnim'
-import { formatTooltipMeta } from '../../data/format'
 import { subscribePreviewTicker } from '../../render/previewTicker'
 import { hitTest, renderScene } from '../../render/renderer'
 import { useEditorStore } from '../../store/editorStore'
 import type { ChartSpec } from '../../chart-spec/types'
+import { isBarChartSpec, isHeatmapChartSpec } from '../../chart-spec/types'
 import { OverlayScrollArea } from '../ui/overlay-scroll-area'
 
 const MIN_LAYOUT_WIDTH = 320
@@ -26,10 +26,13 @@ function specForPreviewWidth(
 ): ChartSpec {
   const z = Math.max(zoom, 0.1)
   const width = Math.max(MIN_LAYOUT_WIDTH, Math.floor(viewportWidth / z + 0.5))
-  return {
-    ...spec,
-    layout: { ...spec.layout, width },
+  if (isHeatmapChartSpec(spec)) {
+    return spec
   }
+  if (isBarChartSpec(spec)) {
+    return { ...spec, layout: { ...spec.layout, width } }
+  }
+  return spec
 }
 
 function readPreviewViewportWidth(
@@ -87,14 +90,18 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
   const storeSpec = useEditorStore((s) => s.spec)
   const spec = specProp ?? storeSpec
   const ui = useEditorStore((s) => s.ui)
+  const selectedChart = useEditorStore((s) => s.selectedChart)
   const usesLiveUi =
-    interactive && (specProp == null || specProp.variant === storeSpec.variant)
+    interactive &&
+    (specProp == null ||
+      (specProp.chartType === 'heatmap'
+        ? selectedChart === 'heatmap'
+        : specProp.variant === storeSpec.variant && storeSpec.chartType === 'bar'))
   const expandedIds = usesLiveUi ? ui.expandedNodeIds : staticExpandedIds(spec)
   const collapsedIds = usesLiveUi ? ui.collapsedNodeIds : []
   const setTargetZoom = useEditorStore((s) => s.setTargetZoom)
   const setHoverId = useEditorStore((s) => s.setHoverId)
   const setSelectId = useEditorStore((s) => s.setSelectId)
-  const setTooltip = useEditorStore((s) => s.setTooltip)
   const toggleNode = useEditorStore((s) => s.toggleNode)
   const beginTreeLayoutAnim = useEditorStore((s) => s.beginTreeLayoutAnim)
 
@@ -220,8 +227,15 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
     displaySceneHeightRef.current = displayH
     canvas.width = scene.width * dpr * z
     canvas.height = displayH * dpr * z
-    canvas.style.width = '100%'
-    canvas.style.height = `${displayH * z}px`
+    const cssW = scene.width * z
+    const cssH = displayH * z
+    if (layoutSpec.chartType === 'heatmap') {
+      canvas.style.width = `${cssW}px`
+      canvas.style.height = `${cssH}px`
+    } else {
+      canvas.style.width = '100%'
+      canvas.style.height = `${cssH}px`
+    }
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
@@ -304,6 +318,10 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
           spec.animation.enabled &&
           !isHierarchy &&
           computeAnimProgress(spec.animation, elapsed, 0) < 1
+        const heatmapLoadAnimating =
+          spec.chartType === 'heatmap' &&
+          spec.animation.enabled &&
+          computeAnimProgress(spec.animation, elapsed, 0) < 1
         const hierarchyLoadAnimating =
           spec.animation.enabled &&
           isHierarchy &&
@@ -317,6 +335,7 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
           !zoomDone ||
           !heightDone ||
           globalLoadAnimating ||
+          heatmapLoadAnimating ||
           hierarchyLoadAnimating ||
           treeLayoutAnimating
 
@@ -384,15 +403,6 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
     })
     const hit = hitTest(scene, pt.x, pt.y)
     setHoverId(hit?.id ?? null)
-    if (hit && spec.tooltip.show) {
-      setTooltip({
-        x: e.clientX,
-        y: e.clientY,
-        text: formatTooltipMeta(hit.meta ?? {}),
-      })
-    } else {
-      setTooltip(null)
-    }
   }
 
   const onClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -450,7 +460,6 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
         onMouseLeave={() => {
           if (!usesLiveUi) return
           setHoverId(null)
-          setTooltip(null)
         }}
         onClick={onClick}
       />

@@ -1,4 +1,5 @@
 import { cn } from '../../../lib/utils'
+import { inspectorStackGap, inspectorStackLayout } from './inspectorStyles'
 
 /** Smooth height + opacity reveal for conditional inspector blocks. */
 export function InspectorReveal({
@@ -6,30 +7,39 @@ export function InspectorReveal({
   children,
   className,
   innerClassName,
-  pullUpWhenClosed = true,
+  animated = false,
 }: {
   show: boolean
   children: React.ReactNode
   className?: string
   innerClassName?: string
-  /** When false, keep collapsed height flush (nested cards like Accessibility Threshold). */
+  /** Animate open/close (section bodies). Default: remove from layout when hidden. */
+  animated?: boolean
+  /** @deprecated Use `animated`. Kept for existing call sites. */
   pullUpWhenClosed?: boolean
 }) {
+  const inner = (
+    <div className={cn(inspectorStackLayout, innerClassName ?? inspectorStackGap)}>{children}</div>
+  )
+
+  if (!animated) {
+    return (
+      <div className={cn(!show && 'hidden', className)} aria-hidden={!show}>
+        {inner}
+      </div>
+    )
+  }
+
   return (
     <div
       className={cn(
-        'grid transition-[grid-template-rows,opacity,margin] duration-200 ease-out motion-reduce:transition-none',
+        'grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none',
         show ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none',
-        !show && pullUpWhenClosed && '-mt-2',
         className,
       )}
       aria-hidden={!show}
     >
-      <div className="overflow-hidden min-h-0">
-        <div className={cn('flex w-full min-w-0 flex-col', innerClassName ?? 'gap-2')}>
-          {children}
-        </div>
-      </div>
+      <div className="overflow-hidden min-h-0">{inner}</div>
     </div>
   )
 }

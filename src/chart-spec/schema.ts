@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { MAX_PALETTE_BASE_COUNT } from '../visualization-colors/constants'
 import {
   DEFAULT_VISUALIZATION_PALETTE,
   normalizePaletteConfig,
@@ -15,11 +16,32 @@ import {
 
 } from '../visualization-colors/migrateFromLegacy'
 
+import { createHeatmapSpec } from './defaults'
 import { darkChartSurface } from './colorPresets'
-
+import { normalizeHeatmapColors } from '../heatmap-colors/defaults'
 import { normalizeChartPadding } from './padding'
+import { cloneSurfaceByTheme, normalizeChartColors } from './surfaceColors'
+import type { ChartGeometry, HeatmapChartSpec, HeatmapLayout } from './types'
 
-import { normalizeChartColors } from './surfaceColors'
+function normalizeHeatmapLayout(
+  layout: HeatmapLayout,
+  geometry?: ChartGeometry,
+): HeatmapLayout {
+  const fallbackSize = geometry?.barThickness ?? 40
+  const fallbackGap = geometry?.barGap ?? 4
+  return {
+    ...layout,
+    mode: 'heatmap',
+    cellWidth: layout.cellWidth ?? fallbackSize,
+    cellHeight: layout.cellHeight ?? fallbackSize,
+    lockCellSize: layout.lockCellSize ?? true,
+    gap: layout.gap ?? fallbackGap,
+    columnLabelOffsetX: layout.columnLabelOffsetX ?? 0,
+    columnLabelOffsetY: layout.columnLabelOffsetY ?? 0,
+    rowLabelOffsetX: layout.rowLabelOffsetX ?? 0,
+    rowLabelOffsetY: layout.rowLabelOffsetY ?? 0,
+  }
+}
 
 
 
@@ -37,11 +59,27 @@ const paddingSchema = z.object({
 
 
 
+const tabularPatternIdSchema = z.enum([
+  'random',
+  'increasing',
+  'decreasing',
+  'bell-curve',
+  'wave',
+  'peaks-valleys',
+  'uniform',
+  'clustered',
+  'outliers',
+  'positive-negative',
+  'sparse',
+])
+
 const provenanceSchema = z
 
   .object({
 
     pattern: z.string(),
+
+    seriesPattern: tabularPatternIdSchema.optional(),
 
     seed: z.number(),
 
@@ -114,12 +152,12 @@ const visualizationPaletteSchema = z.object({
 
   }),
 
-  maxBaseColors: z.number().int().min(2).max(32).optional(),
+  maxBaseColors: z.number().int().min(2).max(MAX_PALETTE_BASE_COUNT).optional(),
 
   excessColorHandling: z
     .object({
       enabled: z.boolean(),
-      activateAfter: z.number().int().min(2).max(32),
+      activateAfter: z.number().int().min(2).max(MAX_PALETTE_BASE_COUNT),
       mode: z.enum(['repeatWithShift', 'lightness', 'chroma', 'hue']),
       shiftDegrees: z.number().min(0).max(360),
       step: z.number().min(0.02).max(0.5),
@@ -181,6 +219,10 @@ const chartColorsV2Schema = z.object({
 
   visualization: visualizationPaletteSchema,
 
+  encoding: z.enum(['categorical', 'value']).optional(),
+
+  heatmap: z.record(z.string(), z.unknown()).optional(),
+
 })
 
 
@@ -218,6 +260,19 @@ const specBodySchema = z.object({
       ),
 
       provenance: provenanceSchema,
+
+      composition: z
+        .object({
+          categories: z.array(z.string()),
+          series: z.array(
+            z.object({
+              id: z.string(),
+              name: z.string(),
+              values: z.array(z.number()),
+            }),
+          ),
+        })
+        .optional(),
 
     }),
 
@@ -297,6 +352,8 @@ const specBodySchema = z.object({
 
     barGap: z.number(),
 
+    stackGap: z.number().min(0).max(32).default(2),
+
     groupGap: z.number(),
 
     cornerRadius: z.number().max(128),
@@ -317,11 +374,13 @@ const specBodySchema = z.object({
 
     insetX: z.number().min(0).max(64).default(8),
 
+    insetY: z.number().min(-32).max(32).default(0),
+
     valueLabelGap: z.number().min(0).max(48).default(6),
 
     valueColumnWidth: z.number().min(24).max(120).default(52),
 
-    labelOverflow: z.enum(['clip', 'overflow', 'outside']),
+    labelOverflow: z.enum(['fade', 'clip', 'overflow', 'outside']).default('fade'),
 
     valueFontFamily: z.string().default('DM Mono'),
 
@@ -515,7 +574,63 @@ function migrateV1ToV2(v1: z.infer<typeof chartSpecV1Schema>): import('./types')
 
 
 
+function migrateHeatmapChartSpec(raw: unknown): HeatmapChartSpec {
+  const base = createHeatmapSpec()
+  if (!raw || typeof raw !== 'object') return base
+  const bag = raw as Record<string, unknown>
+  const merged = {
+    ...base,
+    ...bag,
+    data: bag.data ?? base.data,
+    layout: {
+      ...base.layout,
+      ...(typeof bag.layout === 'object' && bag.layout ? (bag.layout as object) : {}),
+    },
+    colors: {
+      ...base.colors,
+      ...(typeof bag.colors === 'object' && bag.colors ? (bag.colors as object) : {}),
+    },
+    geometry: { ...base.geometry, ...(bag.geometry as object) },
+    labels: { ...base.labels, ...(bag.labels as object) },
+    axes: { ...base.axes, ...(bag.axes as object) },
+    grid: { ...base.grid, ...(bag.grid as object) },
+    legend: { ...base.legend, ...(bag.legend as object) },
+    tooltip: { ...base.tooltip, ...(bag.tooltip as object) },
+    interaction: { ...base.interaction, ...(bag.interaction as object) },
+    animation: { ...base.animation, ...(bag.animation as object) },
+    renderer: { ...base.renderer, ...(bag.renderer as object) },
+    typography: { ...base.typography, ...(bag.typography as object) },
+  } as HeatmapChartSpec
+  merged.chartType = 'heatmap'
+  merged.variant = 'heatmap'
+  if (merged.data.shape !== 'tabular') {
+    merged.data = base.data
+  }
+  if (merged.layout.mode !== 'heatmap') {
+    merged.layout = base.layout
+  } else {
+    merged.layout = normalizeHeatmapLayout(merged.layout, merged.geometry)
+  }
+  merged.colors = {
+    surfaceByTheme: cloneSurfaceByTheme(merged.colors.surfaceByTheme),
+    heatmap: normalizeHeatmapColors(merged.colors.heatmap),
+  }
+  return normalizeChartPadding(merged) as HeatmapChartSpec
+}
+
 export function migrateChartSpec(raw: unknown): import('./types').ChartSpec {
+  const chartType =
+    raw && typeof raw === 'object' && 'chartType' in raw
+      ? (raw as { chartType: string }).chartType
+      : 'bar'
+  if (chartType === 'heatmap') {
+    return migrateHeatmapChartSpec(raw)
+  }
+
+  const barRaw =
+    raw && typeof raw === 'object' && !('chartType' in raw)
+      ? { chartType: 'bar' as const, ...(raw as object) }
+      : raw
 
   const version =
 
@@ -531,11 +646,11 @@ export function migrateChartSpec(raw: unknown): import('./types').ChartSpec {
 
   if (version === 1) {
 
-    spec = migrateV1ToV2(chartSpecV1Schema.parse(raw))
+    spec = migrateV1ToV2(chartSpecV1Schema.parse(barRaw))
 
   } else {
 
-    spec = chartSpecV2Schema.parse(raw) as import('./types').ChartSpec
+    spec = chartSpecV2Schema.parse(barRaw) as import('./types').ChartSpec
 
   }
 
@@ -548,6 +663,10 @@ export function migrateChartSpec(raw: unknown): import('./types').ChartSpec {
   }
 
 
+
+  if (spec.chartType !== 'bar') {
+    return normalizeChartPadding(spec)
+  }
 
   if (!spec.colors.visualization) {
 
@@ -566,6 +685,12 @@ export function migrateChartSpec(raw: unknown): import('./types').ChartSpec {
   }
 
   spec.colors.visualization = normalizePaletteConfig(spec.colors.visualization)
+
+  spec.colors = normalizeChartColors({
+    ...spec.colors,
+    encoding: spec.colors.encoding,
+    heatmap: spec.colors.heatmap,
+  })
 
   return normalizeChartPadding(spec)
 

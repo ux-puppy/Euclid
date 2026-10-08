@@ -1,5 +1,6 @@
 import { migrateChartSpec } from './schema'
-import type { ChartSpec, ChartVariant } from './types'
+import type { BarChartSpec, ChartSpec, ChartVariant, EditorChartId, HeatmapChartSpec } from './types'
+import { isBarChartSpec } from './types'
 
 export function specForExport(spec: ChartSpec, expandedNodeIds: string[]): ChartSpec {
   const copy = structuredClone(spec)
@@ -12,7 +13,14 @@ export function specForExport(spec: ChartSpec, expandedNodeIds: string[]): Chart
 export type SpecsBundleExportV2 = {
   version: 2
   selectedVariant: ChartVariant
-  specsByVariant: Record<ChartVariant, ChartSpec>
+  specsByVariant: Record<ChartVariant, BarChartSpec>
+}
+
+export type SpecsBundleExportV3 = {
+  version: 3
+  selectedChart: EditorChartId
+  specsByVariant: Record<ChartVariant, BarChartSpec>
+  heatmapSpec: HeatmapChartSpec
 }
 
 const BUNDLE_VARIANTS: ChartVariant[] = ['classic', 'breakdown', 'hierarchy']
@@ -26,43 +34,72 @@ export function isSpecsBundleExportV2(raw: unknown): raw is SpecsBundleExportV2 
   return BUNDLE_VARIANTS.every((v) => v in bag)
 }
 
+export function isSpecsBundleExportV3(raw: unknown): raw is SpecsBundleExportV3 {
+  if (!raw || typeof raw !== 'object') return false
+  const o = raw as Record<string, unknown>
+  if (o.version !== 3 || typeof o.selectedChart !== 'string') return false
+  if (!o.specsByVariant || typeof o.specsByVariant !== 'object') return false
+  if (!o.heatmapSpec || typeof o.heatmapSpec !== 'object') return false
+  const bag = o.specsByVariant as Record<string, unknown>
+  return BUNDLE_VARIANTS.every((v) => v in bag)
+}
+
 export function bundleForExport(
-  selectedVariant: ChartVariant,
-  specsByVariant: Record<ChartVariant, ChartSpec>,
+  selectedChart: EditorChartId,
+  specsByVariant: Record<ChartVariant, BarChartSpec>,
+  heatmapSpec: HeatmapChartSpec,
   hierarchyExpandedIds: string[],
-): SpecsBundleExportV2 {
+): SpecsBundleExportV3 {
   return {
-    version: 2,
-    selectedVariant,
+    version: 3,
+    selectedChart,
     specsByVariant: {
-      classic: specForExport(specsByVariant.classic, []),
-      breakdown: specForExport(specsByVariant.breakdown, []),
-      hierarchy: specForExport(specsByVariant.hierarchy, hierarchyExpandedIds),
+      classic: specForExport(specsByVariant.classic, []) as BarChartSpec,
+      breakdown: specForExport(specsByVariant.breakdown, []) as BarChartSpec,
+      hierarchy: specForExport(specsByVariant.hierarchy, hierarchyExpandedIds) as BarChartSpec,
     },
+    heatmapSpec: specForExport(heatmapSpec, []) as HeatmapChartSpec,
   }
 }
 
 export type ParsedImport =
-  | { kind: 'bundle'; bundle: SpecsBundleExportV2 }
+  | { kind: 'bundle-v3'; bundle: SpecsBundleExportV3 }
+  | { kind: 'bundle-v2'; bundle: SpecsBundleExportV2 }
   | { kind: 'single'; spec: ChartSpec }
 
 export function parseImportedPayload(text: string): ParsedImport {
   const raw = JSON.parse(text) as unknown
+  if (isSpecsBundleExportV3(raw)) {
+    return {
+      kind: 'bundle-v3',
+      bundle: {
+        version: 3,
+        selectedChart: raw.selectedChart,
+        specsByVariant: {
+          classic: migrateChartSpec(raw.specsByVariant.classic) as BarChartSpec,
+          breakdown: migrateChartSpec(raw.specsByVariant.breakdown) as BarChartSpec,
+          hierarchy: migrateChartSpec(raw.specsByVariant.hierarchy) as BarChartSpec,
+        },
+        heatmapSpec: migrateChartSpec(raw.heatmapSpec) as HeatmapChartSpec,
+      },
+    }
+  }
   if (isSpecsBundleExportV2(raw)) {
     return {
-      kind: 'bundle',
+      kind: 'bundle-v2',
       bundle: {
         version: 2,
         selectedVariant: raw.selectedVariant,
         specsByVariant: {
-          classic: migrateChartSpec(raw.specsByVariant.classic),
-          breakdown: migrateChartSpec(raw.specsByVariant.breakdown),
-          hierarchy: migrateChartSpec(raw.specsByVariant.hierarchy),
+          classic: migrateChartSpec(raw.specsByVariant.classic) as BarChartSpec,
+          breakdown: migrateChartSpec(raw.specsByVariant.breakdown) as BarChartSpec,
+          hierarchy: migrateChartSpec(raw.specsByVariant.hierarchy) as BarChartSpec,
         },
       },
     }
   }
-  return { kind: 'single', spec: migrateChartSpec(raw) }
+  const spec = migrateChartSpec(raw)
+  return { kind: 'single', spec }
 }
 
 export function downloadJSON(data: unknown, filename = 'euclid-chart.json') {
@@ -80,7 +117,9 @@ export async function copyJSON(data: unknown) {
 }
 
 export function parseImportedJSON(text: string): ChartSpec {
-  const parsed = parseImportedPayload(text)
-  if (parsed.kind === 'single') return parsed.spec
-  return parsed.bundle.specsByVariant[parsed.bundle.selectedVariant]
+  return migrateChartSpec(JSON.parse(text))
+}
+
+export function isBarSpecForPalette(spec: ChartSpec): spec is BarChartSpec {
+  return isBarChartSpec(spec)
 }

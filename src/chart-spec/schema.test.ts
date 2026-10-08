@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createClassicSpec } from './defaults'
+import { createClassicSpec, createHeatmapSpec } from './defaults'
 import { migrateChartSpec } from './schema'
+import { isBarChartSpec } from './types'
 
 describe('chart spec schema', () => {
   it('round-trips classic spec through JSON', () => {
@@ -9,7 +10,20 @@ describe('chart spec schema', () => {
     expect(parsed.variant).toBe('classic')
     expect(parsed.data.shape).toBe('tabular')
     expect(parsed.schemaVersion).toBe(2)
-    expect(parsed.colors.visualization.startHue).toBeGreaterThanOrEqual(0)
+    expect(isBarChartSpec(parsed)).toBe(true)
+    if (isBarChartSpec(parsed)) {
+      expect(parsed.colors.visualization.startHue).toBeGreaterThanOrEqual(0)
+    }
+  })
+
+  it('round-trips heatmap spec through JSON', () => {
+    const spec = createHeatmapSpec()
+    const parsed = migrateChartSpec(JSON.parse(JSON.stringify(spec)))
+    expect(parsed.chartType).toBe('heatmap')
+    if (parsed.chartType === 'heatmap') {
+      expect(parsed.colors.heatmap.sequential.stops.length).toBeGreaterThan(1)
+      expect(parsed.colors.heatmap.interpolation.scale).toBeDefined()
+    }
   })
 
   it('migrates v1 specs with series arrays', () => {
@@ -34,6 +48,6 @@ describe('chart spec schema', () => {
     const parsed = migrateChartSpec(JSON.parse(JSON.stringify(legacy)))
     expect(parsed.schemaVersion).toBe(2)
     expect(parsed.colors.surfaceByTheme.dark.background).toBe('#1a1a1a')
-    expect(parsed.colors.visualization).toBeDefined()
+    expect(isBarChartSpec(parsed) && parsed.colors.visualization).toBeTruthy()
   })
 })

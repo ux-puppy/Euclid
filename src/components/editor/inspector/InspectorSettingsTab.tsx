@@ -8,8 +8,22 @@ import { PatternDataControl } from './PatternDataControl'
 import { DEFAULT_TREE_MAX_DEPTH } from '../../../chart-spec/defaults'
 import { InspectorCommonSettings } from './InspectorCommonSettings'
 import { InspectorReveal } from './InspectorReveal'
+import { inspectorStack, inspectorTabRoot } from './inspectorStyles'
+import {
+  isHeatmapChartSpec,
+  type HeatmapChartSpec,
+  type TabularPatternId,
+} from '../../../chart-spec/types'
+import {
+  barSafeTabularPattern,
+  unifiedParamsFromHeatmap,
+  unifiedParamsFromSpecs,
+} from '../../../data/unifiedData'
+
 export function InspectorSettingsTab() {
   const spec = useEditorStore((s) => s.spec)
+  const specsByVariant = useEditorStore((s) => s.specsByVariant)
+  const isHeatmap = isHeatmapChartSpec(spec)
   const setSpec = useEditorStore((s) => s.setSpec)
   const setPattern = useEditorStore((s) => s.setPattern)
   const randomize = useEditorStore((s) => s.randomize)
@@ -21,34 +35,56 @@ export function InspectorSettingsTab() {
   const isCustom = spec.data.provenance === null
   const isTree = spec.data.shape === 'tree'
   const provParams = spec.data.provenance?.params ?? {}
+  const unifiedDataParams = isHeatmap
+    ? unifiedParamsFromHeatmap(spec as HeatmapChartSpec)
+    : unifiedParamsFromSpecs(specsByVariant)
+  const categoryPattern = isHeatmap
+    ? unifiedDataParams.pattern
+    : barSafeTabularPattern(unifiedDataParams.pattern)
+  const seriesPattern = isHeatmap
+    ? unifiedDataParams.seriesPattern
+    : barSafeTabularPattern(unifiedDataParams.seriesPattern)
 
   return (
-    <div className="pb-2">
-      <InspectorSection title="Data">
-        <p className="text-[10px] text-muted-foreground pb-1 leading-snug w-full min-w-0">
-          Pattern, seed, and counts stay in sync across all three previews.
-        </p>
+    <div className={inspectorTabRoot}>
+      <InspectorSection title="Sample Data">
         <PatternDataControl
+          label="Category data shape"
           isTree={false}
           isCustom={isCustom}
-          patternId={spec.data.provenance?.pattern}
+          patternId={categoryPattern}
+          includePositiveNegative={isHeatmap}
           onPatternChange={(p) => setPattern(p)}
           onRandomize={randomize}
         />
         <InspectorReveal show={!isCustom}>
           <SliderControl
-            label="Countries (categories)"
+            label="Categories"
             value={provParams.categoryCount ?? 6}
             min={2}
             max={MAX_PALETTE_BASE_COUNT}
             step={1}
             onChange={(v) => regenerateAllData({ categoryCount: v })}
           />
+        </InspectorReveal>
+        <PatternDataControl
+          label="Series data shape"
+          isTree={false}
+          isCustom={isCustom}
+          patternId={seriesPattern}
+          includePositiveNegative={isHeatmap}
+          showRandomize={false}
+          onPatternChange={(p) =>
+            regenerateAllData({ seriesPattern: p as TabularPatternId })
+          }
+          onRandomize={randomize}
+        />
+        <InspectorReveal show={!isCustom}>
           <SliderControl
-            label="States (series)"
+            label="Series"
             value={provParams.seriesCount ?? 5}
             min={1}
-            max={8}
+            max={isHeatmap ? 16 : 8}
             step={1}
             onChange={(v) => regenerateAllData({ seriesCount: v })}
           />
@@ -79,8 +115,8 @@ export function InspectorSettingsTab() {
 
       <InspectorCommonSettings activeSpec={spec} />
 
-      <InspectorSection title="Project">
-        <div className="flex w-full min-w-0 flex-col gap-2">
+      <InspectorSection title="Project" defaultOpen={false}>
+        <div className={inspectorStack}>
           <Button
             variant="outline"
             onClick={() => downloadJSON(exportBundle(), 'euclid-charts.json')}

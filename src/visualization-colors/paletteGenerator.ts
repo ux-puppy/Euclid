@@ -15,6 +15,7 @@ import {
   type OklchTuple,
 } from './oklch'
 import { isStandardPerceptionBase } from './perceptionColor'
+import { evenWheelTemplateHues } from './wheelHueMapping'
 
 const HUE_LATTICE_STEPS = 360
 const UNIT_WEIGHTS = { lightness: 1, chroma: 1, hue: 1 } as const
@@ -94,12 +95,10 @@ function baseTemplateHues(
   l: number,
   c: number,
   base: BaseCorrection,
-  layout: HueLayout,
   maxInSet: number,
 ): number[] {
   const cap = Math.min(Math.max(2, maxInSet), MAX_PALETTE_BASE_COUNT)
   const n = Math.min(Math.max(1, count), cap)
-  if (layout === 'even') return evenlySpacedTemplateHues(n, cap)
   return isStandardPerceptionBase(base)
     ? greedyTemplateHuesHueOnly(n)
     : greedyTemplateHues(n, l, c)
@@ -131,8 +130,14 @@ export function generateTemplateHues(
   base: BaseCorrection,
   layout: HueLayout,
   maxInSet: number = 12,
+  startHue: number = 0,
 ): number[] {
-  const template = baseTemplateHues(count, l, c, base, layout, maxInSet)
+  const cap = Math.min(Math.max(2, maxInSet), MAX_PALETTE_BASE_COUNT)
+  const n = Math.min(Math.max(1, count), cap)
+  if (layout === 'even') {
+    return evenWheelTemplateHues(n, startHue, weights.hue)
+  }
+  const template = baseTemplateHues(count, l, c, base, maxInSet)
   return applyHueSeparation(template, weights.hue)
 }
 
@@ -156,6 +161,7 @@ export function templateHueForPaletteSlot(
       config.base,
       layout,
       n,
+      config.startHue,
     )
     const baseHue = template[slot % template.length] ?? 0
     return normalizeHue(baseHue + config.startHue)
@@ -171,6 +177,7 @@ export function templateHueForPaletteSlot(
     config.base,
     layout,
     maxInSet,
+    config.startHue,
   )
   const baseHue = template[slot % template.length] ?? 0
   return normalizeHue(baseHue + config.startHue)

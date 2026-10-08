@@ -11,6 +11,7 @@ import type { ChartTheme, VisualizationPaletteConfig } from '../../../visualizat
 import { SliderControl } from '../../ui/slider-control'
 import { cn } from '../../../lib/utils'
 import { InspectorReveal } from './InspectorReveal'
+import { inspectorStack, inspectorStackGap } from './inspectorStyles'
 
 type AccessibilityContrastPanelProps = {
   spec: ChartSpec
@@ -92,7 +93,7 @@ export function AccessibilityContrastPanel({
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-1">
+    <div className={inspectorStack}>
       <MonitorRow label="Clr.">
         {paletteSequence.map(({ sequence, hex }) => (
           <ColorSequenceDot key={sequence} sequence={sequence} hex={hex} />
@@ -170,9 +171,9 @@ export function AccessibilityContrastPanel({
         )}
         <InspectorReveal
           show={thresholdOpen}
-          pullUpWhenClosed={false}
+          animated
           className={thresholdOpen ? 'mt-2.5' : undefined}
-          innerClassName="gap-1.5"
+          innerClassName={inspectorStackGap}
         >
             <SliderControl
               label="Text on viz (1:X)"

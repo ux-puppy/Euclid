@@ -15,7 +15,7 @@ export function ColorTokenRow({
 }: ColorTokenRowProps) {
   if (variant === 'pill') {
     return (
-      <div className="flex w-full min-w-0 items-center justify-between gap-2 py-0.5">
+      <div className="flex h-[30px] w-full min-w-0 items-center justify-between gap-2">
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground/60">
           {label}
         </span>
@@ -25,7 +25,7 @@ export function ColorTokenRow({
   }
 
   return (
-    <div className="flex w-full min-w-0 items-center justify-between gap-2 py-0.5">
+    <div className="flex h-[30px] w-full min-w-0 items-center justify-between gap-2">
       <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground/60 capitalize">
         {label}
       </span>

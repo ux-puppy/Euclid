@@ -11,6 +11,10 @@ type IroColorPickerProps = {
   label: string
   className?: string
   variant?: 'default' | 'pill'
+  /** Opens the picker panel on first mount (e.g. after click-to-edit). */
+  defaultOpen?: boolean
+  triggerClassName?: string
+  onOpenChange?: (open: boolean) => void
 }
 
 const PICKER_WIDTH = 200
@@ -28,8 +32,22 @@ export function IroColorPicker({
   label,
   className,
   variant = 'default',
+  defaultOpen = false,
+  triggerClassName,
+  onOpenChange,
 }: IroColorPickerProps) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
+
+  const setOpenTracked = useCallback(
+    (next: boolean | ((prev: boolean) => boolean)) => {
+      setOpen((prev) => {
+        const resolved = typeof next === 'function' ? next(prev) : next
+        if (resolved !== prev) onOpenChange?.(resolved)
+        return resolved
+      })
+    },
+    [onOpenChange],
+  )
   const [hexField, setHexField] = useState('')
   const [hexError, setHexError] = useState(false)
   const [previewColor, setPreviewColor] = useState(value)
@@ -145,11 +163,11 @@ export function IroColorPicker({
       const target = e.target as Node
       if (triggerRef.current?.contains(target)) return
       if (panelRef.current?.contains(target)) return
-      setOpen(false)
+      setOpenTracked(false)
     }
     document.addEventListener('mousedown', onDocMouseDown)
     return () => document.removeEventListener('mousedown', onDocMouseDown)
-  }, [open])
+  }, [open, setOpenTracked])
 
   const applyHex = () => {
     const trimmed = hexField.trim()
@@ -221,13 +239,14 @@ export function IroColorPicker({
           aria-expanded={open}
           aria-controls={panelId}
           aria-label={`Pick color for ${label}`}
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => setOpenTracked((o) => !o)}
           className={cn(
             'shrink-0 cursor-pointer ring-offset-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-border',
             controlSurfaceTransition,
             variant === 'pill'
               ? 'h-[19px] w-[38px] rounded-full border border-white/20 hover:border-white/30'
               : 'h-7 w-7 rounded border border-border hover:border-foreground/30',
+            triggerClassName,
           )}
           style={{ background: previewColor }}
         />

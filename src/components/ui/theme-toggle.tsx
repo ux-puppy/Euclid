@@ -17,7 +17,7 @@ export function ThemeToggle({ theme, onToggle }: ThemeToggleProps) {
         className={cn(
           'p-1.5 rounded-2xl',
           controlSurfaceTransition,
-          theme === 'light' ? 'bg-panel-elevated' : 'hover:bg-panel-elevated',
+          theme === 'light' ? 'bg-segment-active' : 'hover:bg-panel-elevated',
         )}
       >
         <Sun size={14} className="text-foreground/80" />
@@ -29,7 +29,7 @@ export function ThemeToggle({ theme, onToggle }: ThemeToggleProps) {
         className={cn(
           'p-1.5 rounded-2xl',
           controlSurfaceTransition,
-          theme === 'dark' ? 'bg-panel-elevated' : 'hover:bg-panel-elevated',
+          theme === 'dark' ? 'bg-segment-active' : 'hover:bg-panel-elevated',
         )}
       >
         <Moon size={14} className="text-foreground/80" />

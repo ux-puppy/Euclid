@@ -3,8 +3,8 @@ import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { syncPaletteAssignments } from '../visualization-colors/syncAssignments'
 import {
+  createHeatmapSpec,
   createInitialSpecsBundle,
-  createSpecForVariant,
   DEFAULT_TREE_MAX_DEPTH,
   syncVariantField,
 } from '../chart-spec/defaults'
@@ -21,16 +21,21 @@ import {
 import { assertBundleInvariant } from './bundleInvariant'
 import { migrateChartSpec } from '../chart-spec/schema'
 import type {
+  BarChartSpec,
   ChartSpec,
   ChartVariant,
   DataNode,
+  EditorChartId,
+  HeatmapChartSpec,
   TabularPatternId,
   TreePatternId,
 } from '../chart-spec/types'
-import { deriveVariant } from '../chart-spec/types'
+import { deriveVariant, isBarChartSpec } from '../chart-spec/types'
 import { generateTreeData, randomizeSeed } from '../data/generate'
 import {
   applyUnifiedDataToBundle,
+  applyUnifiedDataToHeatmap,
+  unifiedParamsFromHeatmap,
   unifiedParamsFromSpecs,
   type UnifiedDataParams,
 } from '../data/unifiedData'
@@ -49,23 +54,24 @@ export const VARIANT_LABELS: Record<ChartVariant, string> = {
   breakdown: 'Breakdown',
   hierarchy: 'Hierarchy',
 }
+
+export const CHART_LABELS: Record<EditorChartId, string> = {
+  ...VARIANT_LABELS,
+  heatmap: 'Heatmap',
+}
 const THEME_STORAGE_KEY = 'euclid-ui-theme'
 const SHELL_STORAGE_KEY = 'euclid-shell-layout'
 
-const NAV_WIDTH_DEFAULT = 177
 const INSPECTOR_WIDTH_DEFAULT = 262
-const NAV_WIDTH_MIN = 140
-const NAV_WIDTH_MAX = 280
 const INSPECTOR_WIDTH_MIN = 220
 const INSPECTOR_WIDTH_MAX = 420
 
-function loadShellLayout(): { navWidth: number; inspectorWidth: number } {
+function loadShellLayout(): { inspectorWidth: number } {
   try {
     const raw = localStorage.getItem(SHELL_STORAGE_KEY)
-    if (!raw) return { navWidth: NAV_WIDTH_DEFAULT, inspectorWidth: INSPECTOR_WIDTH_DEFAULT }
-    const parsed = JSON.parse(raw) as { navWidth?: number; inspectorWidth?: number }
+    if (!raw) return { inspectorWidth: INSPECTOR_WIDTH_DEFAULT }
+    const parsed = JSON.parse(raw) as { inspectorWidth?: number; navWidth?: number }
     return {
-      navWidth: clampShell(parsed.navWidth ?? NAV_WIDTH_DEFAULT, NAV_WIDTH_MIN, NAV_WIDTH_MAX),
       inspectorWidth: clampShell(
         parsed.inspectorWidth ?? INSPECTOR_WIDTH_DEFAULT,
         INSPECTOR_WIDTH_MIN,
@@ -73,7 +79,7 @@ function loadShellLayout(): { navWidth: number; inspectorWidth: number } {
       ),
     }
   } catch {
-    return { navWidth: NAV_WIDTH_DEFAULT, inspectorWidth: INSPECTOR_WIDTH_DEFAULT }
+    return { inspectorWidth: INSPECTOR_WIDTH_DEFAULT }
   }
 }
 
@@ -81,11 +87,11 @@ function clampShell(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n))
 }
 
-function saveShellLayout(navWidth: number, inspectorWidth: number) {
+function saveShellLayout(inspectorWidth: number) {
   try {
     localStorage.setItem(
       SHELL_STORAGE_KEY,
-      JSON.stringify({ navWidth, inspectorWidth }),
+      JSON.stringify({ inspectorWidth }),
     )
   } catch {
     /* ignore */
@@ -109,7 +115,6 @@ function loadTheme(): 'dark' | 'light' {
 type UiState = {
   inspectorTab: 'settings' | 'colors'
   theme: 'dark' | 'light'
-  navWidth: number
   inspectorWidth: number
   hoverId: string | null
   selectId: string | null
@@ -125,8 +130,9 @@ type UiState = {
   treeAnimLayoutExpanded: string[]
   treeAnimLayoutCollapsed: string[]
   treeLayoutFromHeight: number
-  tooltip: { x: number; y: number; text: string } | null
   previewShowAllCharts: boolean
+  /** Inspector OKLCH wheel intersects the colors tab scrollport. */
+  paletteWheelInView: boolean
   treeUiByVariant: Partial<
     Record<ChartVariant, { expandedNodeIds: string[]; collapsedNodeIds: string[] }>
   >
@@ -134,11 +140,14 @@ type UiState = {
 
 type EditorState = {
   spec: ChartSpec
-  specsByVariant: Record<ChartVariant, ChartSpec>
+  specsByVariant: Record<ChartVariant, BarChartSpec>
+  heatmapSpec: HeatmapChartSpec
+  selectedChart: EditorChartId
   ui: UiState
   setSpec: (updater: (spec: ChartSpec) => void) => void
   setSharedSpec: (updater: (spec: ChartSpec) => void) => void
   replaceSpec: (spec: ChartSpec) => void
+  selectChart: (chart: EditorChartId) => void
   selectVariant: (variant: ChartVariant) => void
   setVariant: (variant: ChartVariant) => void
   setPreviewShowAllCharts: (show: boolean) => void
@@ -148,7 +157,7 @@ type EditorState = {
   setTheme: (theme: 'dark' | 'light') => void
   toggleTheme: () => void
   setInspectorTab: (tab: UiState['inspectorTab']) => void
-  setNavWidth: (w: number) => void
+  setPaletteWheelInView: (inView: boolean) => void
   setInspectorWidth: (w: number) => void
   setHoverId: (id: string | null) => void
   setSelectId: (id: string | null) => void
@@ -163,7 +172,6 @@ type EditorState = {
   zoomToFit: (fitScale: number) => void
   zoomTo100: () => void
   replayAnimation: () => void
-  setTooltip: (t: UiState['tooltip']) => void
   exportSpec: () => ChartSpec
   exportBundle: () => ReturnType<typeof bundleForExport>
   importSpec: (json: string) => void
@@ -176,14 +184,15 @@ function cloneChartSpec(spec: ChartSpec): ChartSpec {
   return parseImportedJSON(JSON.stringify(spec))
 }
 
-function createDefaultSpecsBundle(seed: ChartSpec): Record<ChartVariant, ChartSpec> {
+function createDefaultSpecsBundle(seed: BarChartSpec): Record<ChartVariant, BarChartSpec> {
   const shared = pickSharedChartSettings(seed)
   const bundle = createInitialSpecsBundle()
   for (const v of ALL_VARIANTS) {
     applySharedChartSettings(bundle[v], shared)
   }
-  bundle[seed.variant] = normalizeTreeMaxDepth(syncVariantField(cloneChartSpec(seed)))
-  const aligned = pickSharedChartSettings(bundle[seed.variant])
+  const normalized = normalizeTreeMaxDepth(syncVariantField(cloneChartSpec(seed))) as BarChartSpec
+  bundle[normalized.variant] = normalized
+  const aligned = pickSharedChartSettings(bundle[normalized.variant])
   for (const v of ALL_VARIANTS) {
     applySharedChartSettings(bundle[v], aligned)
   }
@@ -201,9 +210,10 @@ function createDefaultSpecsBundle(seed: ChartSpec): Record<ChartVariant, ChartSp
   return bundle
 }
 
-function afterUnifiedDataRefresh(state: {
+function afterBarDataRefresh(state: {
   spec: ChartSpec
-  specsByVariant: Record<ChartVariant, ChartSpec>
+  specsByVariant: Record<ChartVariant, BarChartSpec>
+  selectedChart: EditorChartId
   ui: UiState
 }) {
   for (const v of ALL_VARIANTS) {
@@ -215,38 +225,87 @@ function afterUnifiedDataRefresh(state: {
   state.ui.animKey += 1
 }
 
-type AutosaveBundle = {
-  specsByVariant: Record<ChartVariant, ChartSpec>
+function afterHeatmapDataRefresh(state: {
+  spec: ChartSpec
+  heatmapSpec: HeatmapChartSpec
+  selectedChart: EditorChartId
+  ui: UiState
+}) {
+  syncActiveSpecSlot(state)
+  state.ui.animStart = performance.now()
+  state.ui.animKey += 1
+}
+
+type AutosaveBundleV3 = {
+  version: 3
+  specsByVariant: Record<ChartVariant, BarChartSpec>
+  heatmapSpec: HeatmapChartSpec
+  selectedChart: EditorChartId
+}
+
+type AutosaveBundleV2 = {
+  specsByVariant: Record<ChartVariant, BarChartSpec>
   selectedVariant: ChartVariant
 }
 
-function loadAutosaveBundle(): AutosaveBundle | null {
+function loadAutosaveBundle(): AutosaveBundleV3 | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as unknown
+    if (parsed && typeof parsed === 'object' && 'version' in parsed && (parsed as { version: number }).version === 3) {
+      const bag = parsed as AutosaveBundleV3
+      const specsByVariant = {
+        classic: migrateBundleSpec(bag.specsByVariant.classic) as BarChartSpec,
+        breakdown: migrateBundleSpec(bag.specsByVariant.breakdown) as BarChartSpec,
+        hierarchy: migrateBundleSpec(bag.specsByVariant.hierarchy) as BarChartSpec,
+      }
+      const heatmapSpec = migrateChartSpec(bag.heatmapSpec) as HeatmapChartSpec
+      const selectedChart = bag.selectedChart
+      if (selectedChart !== 'heatmap' && !ALL_VARIANTS.includes(selectedChart)) return null
+      return { version: 3, specsByVariant, heatmapSpec, selectedChart }
+    }
     if (
       parsed &&
       typeof parsed === 'object' &&
       'specsByVariant' in parsed &&
       'selectedVariant' in parsed
     ) {
-      const bag = parsed as {
-        specsByVariant: Record<string, unknown>
-        selectedVariant: ChartVariant
-      }
+      const bag = parsed as AutosaveBundleV2
       const specsByVariant = {
-        classic: migrateBundleSpec(bag.specsByVariant.classic),
-        breakdown: migrateBundleSpec(bag.specsByVariant.breakdown),
-        hierarchy: migrateBundleSpec(bag.specsByVariant.hierarchy),
+        classic: migrateBundleSpec(bag.specsByVariant.classic) as BarChartSpec,
+        breakdown: migrateBundleSpec(bag.specsByVariant.breakdown) as BarChartSpec,
+        hierarchy: migrateBundleSpec(bag.specsByVariant.hierarchy) as BarChartSpec,
       }
       const selected = bag.selectedVariant
       if (!ALL_VARIANTS.includes(selected)) return null
-      return { specsByVariant, selectedVariant: selected }
+      const heatmapSpec = createHeatmapSpec()
+      return {
+        version: 3,
+        specsByVariant,
+        heatmapSpec,
+        selectedChart: selected,
+      }
     }
     const single = parseImportedJSON(raw)
+    if (!isBarChartSpec(single)) {
+      const heatmapSpec = single as HeatmapChartSpec
+      const specsByVariant = createInitialSpecsBundle()
+      return {
+        version: 3,
+        specsByVariant,
+        heatmapSpec,
+        selectedChart: 'heatmap',
+      }
+    }
     const specsByVariant = createDefaultSpecsBundle(single)
-    return { specsByVariant, selectedVariant: single.variant }
+    const heatmapSpec = createHeatmapSpec()
+    return {
+      version: 3,
+      specsByVariant,
+      heatmapSpec,
+      selectedChart: single.variant,
+    }
   } catch {
     return null
   }
@@ -256,29 +315,52 @@ function migrateBundleSpec(raw: unknown): ChartSpec {
   return normalizeTreeMaxDepth(migrateChartSpec(raw))
 }
 
-function syncActiveSpecSlot(state: {
+function persistActiveSpecSlot(state: {
   spec: ChartSpec
-  specsByVariant: Record<ChartVariant, ChartSpec>
+  specsByVariant: Record<ChartVariant, BarChartSpec>
+  heatmapSpec: HeatmapChartSpec
+  selectedChart: EditorChartId
 }) {
-  const v = state.spec.variant
-  state.spec = state.specsByVariant[v]
+  if (state.selectedChart === 'heatmap') {
+    state.heatmapSpec = state.spec as HeatmapChartSpec
+  } else {
+    const variant = state.selectedChart
+    state.specsByVariant[variant] = state.spec as BarChartSpec
+  }
 }
 
-function syncSharedToAllVariants(state: {
+function syncActiveSpecSlot(state: {
   spec: ChartSpec
-  specsByVariant: Record<ChartVariant, ChartSpec>
+  specsByVariant: Record<ChartVariant, BarChartSpec>
+  heatmapSpec: HeatmapChartSpec
+  selectedChart: EditorChartId
 }) {
-  syncActiveSpecSlot(state)
+  state.spec =
+    state.selectedChart === 'heatmap'
+      ? state.heatmapSpec
+      : state.specsByVariant[state.selectedChart]
+}
+
+function syncSharedToAllBarVariants(state: {
+  spec: ChartSpec
+  specsByVariant: Record<ChartVariant, BarChartSpec>
+  selectedChart: EditorChartId
+}) {
+  if (!isBarChartSpec(state.spec)) return
   const shared = pickSharedChartSettings(state.spec)
   for (const v of ALL_VARIANTS) {
     applySharedChartSettings(state.specsByVariant[v], shared)
   }
-  state.spec = state.specsByVariant[state.spec.variant]
+  if (state.selectedChart !== 'heatmap') {
+    state.spec = state.specsByVariant[state.selectedChart]
+  }
 }
 
 function finishBundleMutation(state: {
   spec: ChartSpec
-  specsByVariant: Record<ChartVariant, ChartSpec>
+  specsByVariant: Record<ChartVariant, BarChartSpec>
+  heatmapSpec: HeatmapChartSpec
+  selectedChart: EditorChartId
 }) {
   assertBundleInvariant(state)
 }
@@ -287,7 +369,7 @@ function saveTreeUiForVariant(state: {
   spec: ChartSpec
   ui: UiState
 }) {
-  if (state.spec.data.shape !== 'tree') return
+  if (!isBarChartSpec(state.spec) || state.spec.data.shape !== 'tree') return
   state.ui.treeUiByVariant[state.spec.variant] = {
     expandedNodeIds: [...state.ui.expandedNodeIds],
     collapsedNodeIds: [...state.ui.collapsedNodeIds],
@@ -295,7 +377,8 @@ function saveTreeUiForVariant(state: {
 }
 
 function loadTreeUiForSpec(state: { ui: UiState }, spec: ChartSpec) {
-  const saved = state.ui.treeUiByVariant[spec.variant]
+  const saved =
+    isBarChartSpec(spec) ? state.ui.treeUiByVariant[spec.variant] : undefined
   if (spec.data.shape === 'tree' && saved) {
     state.ui.expandedNodeIds = [...saved.expandedNodeIds]
     state.ui.collapsedNodeIds = [...saved.collapsedNodeIds]
@@ -306,7 +389,7 @@ function loadTreeUiForSpec(state: { ui: UiState }, spec: ChartSpec) {
 }
 
 function normalizeTreeMaxDepth(spec: ChartSpec): ChartSpec {
-  if (spec.data.shape !== 'tree' || !spec.data.provenance) return spec
+  if (!isBarChartSpec(spec) || spec.data.shape !== 'tree' || !spec.data.provenance) return spec
   const stored = spec.data.provenance.params.maxDepth
   if (typeof stored !== 'number' || stored <= DEFAULT_TREE_MAX_DEPTH) return spec
   const { pattern, seed, params } = spec.data.provenance
@@ -361,9 +444,11 @@ function startTreeReveal(
 
 const loadedBundle = loadAutosaveBundle()
 const initialSpecsByVariant =
-  loadedBundle?.specsByVariant ?? createDefaultSpecsBundle(createSpecForVariant('classic'))
-const initialSelected = loadedBundle?.selectedVariant ?? 'classic'
-const initialSpec = initialSpecsByVariant[initialSelected]
+  loadedBundle?.specsByVariant ?? createInitialSpecsBundle()
+const initialHeatmapSpec = loadedBundle?.heatmapSpec ?? createHeatmapSpec()
+const initialSelected = loadedBundle?.selectedChart ?? 'classic'
+const initialSpec =
+  initialSelected === 'heatmap' ? initialHeatmapSpec : initialSpecsByVariant[initialSelected]
 const initialTheme = loadTheme()
 const initialShell = loadShellLayout()
 applyDocumentTheme(initialTheme)
@@ -373,10 +458,11 @@ const useTemporalStore = create<EditorState>()(
     immer((set, get) => ({
       spec: initialSpec,
       specsByVariant: initialSpecsByVariant,
+      heatmapSpec: initialHeatmapSpec,
+      selectedChart: initialSelected,
       ui: {
         inspectorTab: 'settings',
         theme: initialTheme,
-        navWidth: initialShell.navWidth,
         inspectorWidth: initialShell.inspectorWidth,
         hoverId: null,
         selectId: null,
@@ -392,8 +478,8 @@ const useTemporalStore = create<EditorState>()(
         treeAnimLayoutExpanded: [],
         treeAnimLayoutCollapsed: [],
         treeLayoutFromHeight: 400,
-        tooltip: null,
         previewShowAllCharts: false,
+        paletteWheelInView: true,
         treeUiByVariant: {},
       },
 
@@ -401,8 +487,10 @@ const useTemporalStore = create<EditorState>()(
         set((state) => {
           syncActiveSpecSlot(state)
           updater(state.spec)
-          state.spec = syncVariantField(state.spec)
-          state.specsByVariant[state.spec.variant] = state.spec
+          if (isBarChartSpec(state.spec)) {
+            state.spec = syncVariantField(state.spec)
+          }
+          persistActiveSpecSlot(state)
           finishBundleMutation(state)
         }),
 
@@ -410,36 +498,55 @@ const useTemporalStore = create<EditorState>()(
         set((state) => {
           syncActiveSpecSlot(state)
           updater(state.spec)
-          state.spec = syncVariantField(state.spec)
-          state.specsByVariant[state.spec.variant] = state.spec
-          syncSharedToAllVariants(state)
+          if (state.selectedChart === 'heatmap') {
+            if (isBarChartSpec(state.spec)) return
+            state.heatmapSpec = state.spec
+          } else {
+            if (!isBarChartSpec(state.spec)) return
+            state.spec = syncVariantField(state.spec)
+            persistActiveSpecSlot(state)
+            syncSharedToAllBarVariants(state)
+          }
           finishBundleMutation(state)
         }),
 
       replaceSpec: (spec) =>
         set((state) => {
-          const next = syncVariantField(spec)
-          state.spec = next
-          state.specsByVariant[next.variant] = next
-          loadTreeUiForSpec(state, next)
+          if (isBarChartSpec(spec)) {
+            const next = syncVariantField(spec) as BarChartSpec
+            state.spec = next
+            state.specsByVariant[next.variant] = next
+            state.selectedChart = next.variant
+          } else {
+            state.spec = spec
+            state.heatmapSpec = spec
+            state.selectedChart = 'heatmap'
+          }
+          loadTreeUiForSpec(state, state.spec)
         }),
 
-      selectVariant: (variant) => {
+      selectChart: (chart) => {
         set((state) => {
-          if (state.spec.variant === variant) return
-          saveTreeUiForVariant(state)
-          state.specsByVariant[state.spec.variant] = state.spec
-          state.spec = state.specsByVariant[variant]
+          if (state.selectedChart === chart) return
+          persistActiveSpecSlot(state)
+          if (state.selectedChart !== 'heatmap') {
+            saveTreeUiForVariant(state)
+          }
+          state.selectedChart = chart
+          syncActiveSpecSlot(state)
           loadTreeUiForSpec(state, state.spec)
           state.ui.hoverId = null
           state.ui.selectId = null
-          state.ui.tooltip = null
           finishBundleMutation(state)
         })
       },
 
+      selectVariant: (variant) => {
+        get().selectChart(variant)
+      },
+
       setVariant: (variant) => {
-        get().selectVariant(variant)
+        get().selectChart(variant)
       },
 
       setPreviewShowAllCharts: (show) =>
@@ -449,9 +556,15 @@ const useTemporalStore = create<EditorState>()(
 
       regenerateAllData: (patch) => {
         set((state) => {
-          const params = { ...unifiedParamsFromSpecs(state.specsByVariant), ...patch }
-          applyUnifiedDataToBundle(state.specsByVariant, params)
-          afterUnifiedDataRefresh(state)
+          if (state.selectedChart === 'heatmap') {
+            const params = { ...unifiedParamsFromHeatmap(state.heatmapSpec), ...patch }
+            applyUnifiedDataToHeatmap(state.heatmapSpec, params)
+            afterHeatmapDataRefresh(state)
+          } else {
+            const params = { ...unifiedParamsFromSpecs(state.specsByVariant), ...patch }
+            applyUnifiedDataToBundle(state.specsByVariant, params)
+            afterBarDataRefresh(state)
+          }
           finishBundleMutation(state)
         })
       },
@@ -463,12 +576,22 @@ const useTemporalStore = create<EditorState>()(
       randomize: () => {
         set((state) => {
           if (!state.spec.data.provenance) return
-          const params = {
-            ...unifiedParamsFromSpecs(state.specsByVariant),
-            seed: randomizeSeed(),
+          if (state.selectedChart === 'heatmap') {
+            const params = {
+              ...unifiedParamsFromHeatmap(state.heatmapSpec),
+              seed: randomizeSeed(),
+            }
+            applyUnifiedDataToHeatmap(state.heatmapSpec, params)
+            afterHeatmapDataRefresh(state)
+          } else {
+            const params = {
+              ...unifiedParamsFromSpecs(state.specsByVariant),
+              seed: randomizeSeed(),
+            }
+            applyUnifiedDataToBundle(state.specsByVariant, params)
+            afterBarDataRefresh(state)
           }
-          applyUnifiedDataToBundle(state.specsByVariant, params)
-          afterUnifiedDataRefresh(state)
+          finishBundleMutation(state)
         })
       },
 
@@ -485,18 +608,21 @@ const useTemporalStore = create<EditorState>()(
         get().setTheme(t)
       },
 
-      setInspectorTab: (tab) => set((s) => { s.ui.inspectorTab = tab }),
-
-      setNavWidth: (w) =>
+      setInspectorTab: (tab) =>
         set((s) => {
-          s.ui.navWidth = clampShell(w, NAV_WIDTH_MIN, NAV_WIDTH_MAX)
-          saveShellLayout(s.ui.navWidth, s.ui.inspectorWidth)
+          s.ui.inspectorTab = tab
+          if (tab !== 'colors') s.ui.paletteWheelInView = true
+        }),
+
+      setPaletteWheelInView: (inView) =>
+        set((s) => {
+          s.ui.paletteWheelInView = inView
         }),
 
       setInspectorWidth: (w) =>
         set((s) => {
           s.ui.inspectorWidth = clampShell(w, INSPECTOR_WIDTH_MIN, INSPECTOR_WIDTH_MAX)
-          saveShellLayout(s.ui.navWidth, s.ui.inspectorWidth)
+          saveShellLayout(s.ui.inspectorWidth)
         }),
 
       setHoverId: (id) => set((s) => { s.ui.hoverId = id }),
@@ -620,33 +746,41 @@ const useTemporalStore = create<EditorState>()(
           s.ui.animKey += 1
         }),
 
-      setTooltip: (t) => set((s) => { s.ui.tooltip = t }),
-
       exportSpec: () => {
         const { spec, ui } = get()
         return specForExport(spec, ui.expandedNodeIds)
       },
 
       exportBundle: () => {
-        const { spec, specsByVariant, ui } = get()
+        const { selectedChart, specsByVariant, heatmapSpec, ui } = get()
         const hierarchyExpanded =
-          spec.variant === 'hierarchy'
-            ? ui.expandedNodeIds
-            : (ui.treeUiByVariant.hierarchy?.expandedNodeIds ?? [])
-        return bundleForExport(spec.variant, specsByVariant, hierarchyExpanded)
+          ui.treeUiByVariant.hierarchy?.expandedNodeIds ?? []
+        return bundleForExport(selectedChart, specsByVariant, heatmapSpec, hierarchyExpanded)
       },
 
       importSpec: (json) => {
         const parsed = parseImportedPayload(json)
         set((state) => {
-          if (parsed.kind === 'bundle') {
+          if (parsed.kind === 'bundle-v3') {
+            const { selectedChart, specsByVariant, heatmapSpec } = parsed.bundle
+            state.specsByVariant = specsByVariant
+            state.heatmapSpec = heatmapSpec
+            state.selectedChart = selectedChart
+            syncActiveSpecSlot(state)
+          } else if (parsed.kind === 'bundle-v2') {
             const { selectedVariant, specsByVariant } = parsed.bundle
             state.specsByVariant = specsByVariant
-            state.spec = specsByVariant[selectedVariant]
-          } else {
+            state.selectedChart = selectedVariant
+            syncActiveSpecSlot(state)
+          } else if (isBarChartSpec(parsed.spec)) {
             const bundle = createDefaultSpecsBundle(parsed.spec)
             state.specsByVariant = bundle
-            state.spec = bundle[parsed.spec.variant]
+            state.selectedChart = parsed.spec.variant
+            syncActiveSpecSlot(state)
+          } else {
+            state.heatmapSpec = parsed.spec
+            state.selectedChart = 'heatmap'
+            syncActiveSpecSlot(state)
           }
           loadTreeUiForSpec(state, state.spec)
           state.ui.animStart = performance.now()
@@ -659,7 +793,9 @@ const useTemporalStore = create<EditorState>()(
         set((state) => {
           const bundle = createInitialSpecsBundle()
           state.specsByVariant = bundle
-          state.spec = bundle.classic
+          state.heatmapSpec = createHeatmapSpec()
+          state.selectedChart = 'classic'
+          syncActiveSpecSlot(state)
           loadTreeUiForSpec(state, state.spec)
           finishBundleMutation(state)
         })
@@ -676,6 +812,8 @@ const useTemporalStore = create<EditorState>()(
       partialize: (state) => ({
         spec: state.spec,
         specsByVariant: state.specsByVariant,
+        heatmapSpec: state.heatmapSpec,
+        selectedChart: state.selectedChart,
       }),
       limit: 100,
     },

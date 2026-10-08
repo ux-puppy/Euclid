@@ -1,4 +1,5 @@
-import type { ChartSpec } from '../chart-spec/types'
+import type { BarChartSpec, ChartSpec } from '../chart-spec/types'
+import { isBarChartSpec } from '../chart-spec/types'
 import { generateBaseColors } from './paletteGenerator'
 import { assignmentIndex } from './categoryAssignment'
 import {
@@ -15,6 +16,11 @@ import type {
 
 /** Distinct base palette slots (one hue per tabular series / top-level tree branch). */
 export function requiredColorCount(spec: ChartSpec): number {
+  if (!isBarChartSpec(spec)) return 1
+  return requiredBarColorCount(spec)
+}
+
+export function requiredBarColorCount(spec: BarChartSpec): number {
   if (spec.data.shape === 'tabular') {
     return Math.max(spec.data.series.length, 1)
   }

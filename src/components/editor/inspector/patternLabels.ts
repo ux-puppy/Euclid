@@ -27,11 +27,16 @@ export function formatPatternLabel(id: string): string {
   return id.replace(/-/g, ' ')
 }
 
-export function tabularPatternOptions(): { value: TabularPatternId; label: string }[] {
-  return (Object.keys(TABULAR_LABELS) as TabularPatternId[]).map((value) => ({
-    value,
-    label: TABULAR_LABELS[value],
-  }))
+export function tabularPatternOptions(options?: {
+  includePositiveNegative?: boolean
+}): { value: TabularPatternId; label: string }[] {
+  const includePositiveNegative = options?.includePositiveNegative ?? false
+  return (Object.keys(TABULAR_LABELS) as TabularPatternId[])
+    .filter((value) => includePositiveNegative || value !== 'positive-negative')
+    .map((value) => ({
+      value,
+      label: TABULAR_LABELS[value],
+    }))
 }
 
 export function treePatternOptions(): { value: TreePatternId; label: string }[] {

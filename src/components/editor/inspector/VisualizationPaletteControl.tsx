@@ -1,6 +1,4 @@
-import iro from '@jaames/iro'
-import { ArrowUpRight } from '@phosphor-icons/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import type { ChartSpec } from '../../../chart-spec/types'
 import { MAX_PALETTE_BASE_COUNT } from '../../../visualization-colors/constants'
 import { resolveExcessColorHandling } from '../../../visualization-colors/defaults'
@@ -8,26 +6,21 @@ import type {
   ExcessColorMode,
   VisualizationPaletteConfig,
 } from '../../../visualization-colors/types'
-import { requiredColorCount, resolvePalettePreview, resolvePaletteSequence } from '../../../visualization-colors/resolve'
-import { baseThemedHex } from '../../../visualization-colors/variantGenerator'
 import type { ChartTheme } from '../../../visualization-colors/types'
 import { useEditorStore } from '../../../store/editorStore'
+import { OklchPaletteWheel } from './OklchPaletteWheel'
 import { ColorsInspectorSection } from './ColorsInspectorSection'
 import { InspectorSelect } from './InspectorSelect'
 import { SwitchRow } from './SwitchRow'
 import { SliderControl } from '../../ui/slider-control'
 import { AccessibilityContrastPanel } from './AccessibilityContrastPanel'
-import { ColorSequenceDot } from './ColorSequenceDot'
-import { IRO_WHEEL_LAYOUT, wheelHandleLocalPosition } from './iroWheelLayout'
-
+import { InspectorReveal } from './InspectorReveal'
 type VisualizationPaletteControlProps = {
   spec: ChartSpec
   theme: ChartTheme
   config: VisualizationPaletteConfig
   onChange: (patch: (prev: VisualizationPaletteConfig) => VisualizationPaletteConfig) => void
 }
-
-const WHEEL_SIZE = 200
 
 const formatPercent = (v: number) =>
   `${Math.round(v * 100)
@@ -71,155 +64,50 @@ export function VisualizationPaletteControl({
   onChange,
 }: VisualizationPaletteControlProps) {
   const wheelWrapRef = useRef<HTMLDivElement>(null)
-  const mountRef = useRef<HTMLDivElement>(null)
-  const pickerRef = useRef<ReturnType<typeof iro.ColorPicker> | null>(null)
-  const [wheelLabels, setWheelLabels] = useState<
-    { sequence: number; hex: string; x: number; y: number }[]
-  >([])
-  const configRef = useRef(config)
-  const onChangeRef = useRef(onChange)
-  configRef.current = config
-  onChangeRef.current = onChange
+  const paletteWheelInView = useEditorStore((s) => s.ui.paletteWheelInView)
+  const setPaletteWheelInView = useEditorStore((s) => s.setPaletteWheelInView)
 
   const regenerateAllData = useEditorStore((s) => s.regenerateAllData)
   const isCustom = spec.data.provenance === null
   const categoryCount = spec.data.provenance?.params?.categoryCount ?? 6
-
-  const count = requiredColorCount(spec)
-  const preview = resolvePalettePreview(config, theme, count)
-  const startHex = baseThemedHex(config.startHue, config, theme)
   const excess = resolveExcessColorHandling(config)
 
-  const wheelColors = [startHex, ...preview.slice(0, Math.min(count, MAX_PALETTE_BASE_COUNT))]
-  const wheelColorsRef = useRef(wheelColors)
-  wheelColorsRef.current = wheelColors
-
-  const syncWheelLabels = useCallback(() => {
-    const wrap = wheelWrapRef.current
-    const mount = mountRef.current
-    const picker = pickerRef.current
-    if (!wrap || !mount || !picker) return
-    const wrapRect = wrap.getBoundingClientRect()
-    const sequence = resolvePaletteSequence(config, theme, count)
-    const next: { sequence: number; hex: string; x: number; y: number }[] = []
-    const wheelEl = mount.querySelector('.IroWheel') ?? mount
-    const wheelRect = wheelEl.getBoundingClientRect()
-    const wheelOffsetX = wheelRect.left - wrapRect.left
-    const wheelOffsetY = wheelRect.top - wrapRect.top
-    for (let i = 1; i < picker.colors.length; i++) {
-      const color = picker.colors[i]
-      const slot = sequence[i - 1]
-      if (!slot) continue
-      const hsv = color.hsv
-      const local = wheelHandleLocalPosition(
-        IRO_WHEEL_LAYOUT,
-        hsv.h ?? 0,
-        hsv.s ?? 100,
-      )
-      next.push({
-        sequence: slot.sequence,
-        hex: slot.hex,
-        x: wheelOffsetX + local.x,
-        y: wheelOffsetY + local.y,
-      })
-    }
-    setWheelLabels(next)
-  }, [config, theme, count])
-
   useEffect(() => {
-    const mount = mountRef.current
-    if (!mount) return
+    const target = wheelWrapRef.current
+    if (!target) return
 
-    const picker = iro.ColorPicker(mount, {
-      width: WHEEL_SIZE,
-      color: startHex,
-      colors: wheelColors,
-      layout: [{ component: iro.ui.Wheel, options: {} }],
-    })
-    pickerRef.current = picker
-    picker.setActiveColor(0)
-
-    const onInput = (color: iro.Color) => {
-      const idx = picker.color.index
-      if (idx !== 0) {
-        picker.setColors(wheelColorsRef.current, 0)
-        return
-      }
-      const h = color.hsv.h ?? configRef.current.startHue
-      onChangeRef.current((prev) => ({ ...prev, startHue: h }))
-    }
-
-    const onLayout = () => requestAnimationFrame(syncWheelLabels)
-
-    picker.on('color:change', onInput)
-    picker.on('input:end', onInput)
-    picker.on('color:change', onLayout)
-    picker.on('input:end', onLayout)
-    requestAnimationFrame(syncWheelLabels)
-
+    const root = target.closest('.euclid-scroll-viewport')
+    let debounce = 0
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return
+        window.clearTimeout(debounce)
+        debounce = window.setTimeout(
+          () => setPaletteWheelInView(entry.isIntersecting),
+          80,
+        )
+      },
+      { root: root ?? null, threshold: 0.05 },
+    )
+    observer.observe(target)
     return () => {
-      picker.off('color:change', onInput)
-      picker.off('input:end', onInput)
-      picker.off('color:change', onLayout)
-      picker.off('input:end', onLayout)
-      pickerRef.current = null
-      mount.innerHTML = ''
-      setWheelLabels([])
+      window.clearTimeout(debounce)
+      observer.disconnect()
+      setPaletteWheelInView(true)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once; colors sync in effect below
-  }, [count, syncWheelLabels])
-
-  useEffect(() => {
-    const picker = pickerRef.current
-    if (!picker) return
-    picker.setColors(wheelColors, picker.color.index === 0 ? 0 : picker.color.index)
-    requestAnimationFrame(syncWheelLabels)
-  }, [wheelColors.join('|'), startHex, syncWheelLabels])
-
-  useEffect(() => {
-    requestAnimationFrame(syncWheelLabels)
-  }, [config.hueLayout, config.paletteRevision, config.startHue, syncWheelLabels])
-
-  const aboutLink = (
-    <a
-      href="https://oklch.com"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-[0.6px] text-muted-foreground transition-colors duration-100 hover:text-foreground"
-    >
-      About
-      <ArrowUpRight size={14} weight="bold" aria-hidden />
-    </a>
-  )
+  }, [setPaletteWheelInView])
 
   return (
     <>
-      <ColorsInspectorSection
-        title="OKLCH color space"
-        headerRight={aboutLink}
-        contentClassName="gap-3"
-      >
-        <div
-          ref={wheelWrapRef}
-          className="relative mx-auto aspect-square w-full max-w-[200px]"
-        >
-          <div
-            ref={mountRef}
-            className="iro-numbered-wheel iro-host [&_.IroColorPicker]:!bg-transparent [&_.IroHandle:not(.IroHandle--0)_circle]:opacity-0"
-          />
-          <div className="pointer-events-none absolute inset-0">
-            {wheelLabels.map((label, index) => (
-              <ColorSequenceDot
-                key={`${index}-${label.sequence}`}
-                sequence={label.sequence}
-                hex={label.hex}
-                variant="wheel"
-                className="absolute -translate-x-1/2 -translate-y-1/2"
-                style={{ left: label.x, top: label.y }}
-              />
-            ))}
-          </div>
-        </div>
+      <ColorsInspectorSection title="OKLCH color space">
+        <OklchPaletteWheel
+          spec={spec}
+          theme={theme}
+          config={config}
+          onChange={onChange}
+          wheelWrapRef={wheelWrapRef}
+          interactive={paletteWheelInView}
+        />
 
         <AccessibilityContrastPanel
           spec={spec}
@@ -365,64 +253,62 @@ export function VisualizationPaletteControl({
           checked={excess.enabled}
           onCheckedChange={(enabled) => onChange((prev) => patchExcess(prev, { enabled }))}
         />
-        {excess.enabled && (
-          <>
+        <InspectorReveal show={excess.enabled}>
+          <SliderControl
+            label="Activate after"
+            value={excess.activateAfter}
+            min={2}
+            max={MAX_PALETTE_BASE_COUNT}
+            step={1}
+            formatValue={(v) => `${Math.round(v)} colors`}
+            onChange={(activateAfter) =>
+              onChange((prev) => patchExcess(prev, { activateAfter }))
+            }
+          />
+          <InspectorSelect
+            value={excess.mode}
+            options={[...EXCESS_MODE_OPTIONS]}
+            onChange={(mode) =>
+              onChange((prev) => patchExcess(prev, { mode: mode as ExcessColorMode }))
+            }
+          />
+          <InspectorReveal show={excess.mode === 'repeatWithShift'}>
             <SliderControl
-              label="Activate after"
-              value={excess.activateAfter}
-              min={2}
-              max={MAX_PALETTE_BASE_COUNT}
+              label="Shift amount"
+              value={excess.shiftDegrees}
+              min={1}
+              max={180}
               step={1}
-              formatValue={(v) => `${Math.round(v)} colors`}
-              onChange={(activateAfter) =>
-                onChange((prev) => patchExcess(prev, { activateAfter }))
+              formatValue={(v) => `${Math.round(v)}°`}
+              onChange={(shiftDegrees) =>
+                onChange((prev) => patchExcess(prev, { shiftDegrees }))
               }
             />
-            <InspectorSelect
-              value={excess.mode}
-              options={[...EXCESS_MODE_OPTIONS]}
-              onChange={(mode) =>
-                onChange((prev) => patchExcess(prev, { mode: mode as ExcessColorMode }))
-              }
-            />
-            {excess.mode === 'repeatWithShift' && (
-              <SliderControl
-                label="Shift amount"
-                value={excess.shiftDegrees}
-                min={1}
-                max={180}
-                step={1}
-                formatValue={(v) => `${Math.round(v)}°`}
-                onChange={(shiftDegrees) =>
-                  onChange((prev) => patchExcess(prev, { shiftDegrees }))
-                }
-              />
-            )}
-            {excess.mode !== 'repeatWithShift' && (
-              <SliderControl
-                label="Change value"
-                value={excess.step}
-                min={0.02}
-                max={0.2}
-                step={0.01}
-                onChange={(step) => onChange((prev) => patchExcess(prev, { step }))}
-              />
-            )}
+          </InspectorReveal>
+          <InspectorReveal show={excess.mode !== 'repeatWithShift'}>
             <SliderControl
-              label="Opacity change"
-              value={excess.opacityStep}
-              min={0}
-              max={0.35}
+              label="Change value"
+              value={excess.step}
+              min={0.02}
+              max={0.2}
               step={0.01}
-              onChange={(opacityStep) =>
-                onChange((prev) => patchExcess(prev, { opacityStep }))
-              }
+              onChange={(step) => onChange((prev) => patchExcess(prev, { step }))}
             />
-          </>
-        )}
+          </InspectorReveal>
+          <SliderControl
+            label="Opacity change"
+            value={excess.opacityStep}
+            min={0}
+            max={0.35}
+            step={0.01}
+            onChange={(opacityStep) =>
+              onChange((prev) => patchExcess(prev, { opacityStep }))
+            }
+          />
+        </InspectorReveal>
       </ColorsInspectorSection>
 
-      <ColorsInspectorSection title="Step Variants">
+      <ColorsInspectorSection title="Step Variants" defaultOpen={false}>
         <InspectorSelect
           value={variantPropertySelectValue(config.variation.property)}
           options={[...VARIANT_PROPERTY_OPTIONS]}

@@ -6,6 +6,7 @@ import { requiredColorCount, resolvePalettePreview } from './resolve'
 
 function tabularSpec(seriesCount: number, categoryCount: number): ChartSpec {
   return {
+    chartType: 'bar',
     variant: 'breakdown',
     data: {
       shape: 'tabular',
@@ -29,14 +30,14 @@ describe('requiredColorCount', () => {
 })
 
 describe('palette preview with series count', () => {
-  it('spaces three series 120° apart on the wheel', () => {
+  it('spaces three series evenly around the wheel', () => {
     const spec = tabularSpec(3, 8)
     const cfg = { ...DEFAULT_VISUALIZATION_PALETTE, startHue: 0, hueLayout: 'even' as const }
     const count = requiredColorCount(spec)
     expect(count).toBe(3)
     const hues = generateBaseColors(cfg, count).map((b) => b.hue)
-    expect(hues[1]).toBeCloseTo(120, 5)
-    expect(hues[2]).toBeCloseTo(240, 5)
+    expect(hues[1]).toBeCloseTo(240, 5)
+    expect(hues[2]).toBeCloseTo(120, 5)
     const preview = resolvePalettePreview(cfg, 'light', count)
     expect(preview).toHaveLength(3)
   })

@@ -9,6 +9,7 @@ import { InspectorTextField } from './InspectorTextField'
 import { EASING_BEZIER } from '../../../chart-spec/easingPresets'
 import { applyUniformChartPadding } from '../../../chart-spec/padding'
 import type { ChartSpec, EasingPreset } from '../../../chart-spec/types'
+import { isHeatmapChartSpec } from '../../../chart-spec/types'
 
 function parseDashInput(raw: string): number[] {
   return raw
@@ -30,8 +31,11 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
   const setSpec = useEditorStore((s) => s.setSpec)
   const setSharedSpec = useEditorStore((s) => s.setSharedSpec)
 
-  const cartLayout = activeSpec.layout.mode === 'cartesian' ? activeSpec.layout : null
-  const listLayout = activeSpec.layout.mode === 'list' ? activeSpec.layout : null
+  const isHeatmap = isHeatmapChartSpec(activeSpec)
+  const heatmapLayout = isHeatmap ? activeSpec.layout : null
+  const cartLayout =
+    !isHeatmap && activeSpec.layout.mode === 'cartesian' ? activeSpec.layout : null
+  const listLayout = !isHeatmap && activeSpec.layout.mode === 'list' ? activeSpec.layout : null
   const tabularSeries =
     activeSpec.data.shape === 'tabular' ? activeSpec.data.series.length : 0
   const showClassicBarGap =
@@ -39,10 +43,12 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
     cartLayout.barLayout === 'grouped' &&
     tabularSeries > 1 &&
     activeSpec.variant === 'classic'
+  const showStackGap =
+    cartLayout != null && cartLayout.barLayout === 'stacked' && tabularSeries > 1
 
   return (
     <>
-      <InspectorSection title="Layout & spacing">
+      <InspectorSection title={isHeatmap ? 'Heatmap layout' : 'Layout & spacing'}>
         <SliderControl
           label="Padding"
           value={spec.chartPadding}
@@ -63,6 +69,113 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
           step={1}
           onChange={(v) => setSharedSpec((s) => { s.containerCornerRadius = v })}
         />
+
+        <InspectorReveal show={heatmapLayout != null}>
+          <SwitchRow
+            label="Auto height"
+            checked={heatmapLayout?.height === 'auto'}
+            onCheckedChange={(checked) =>
+              setSpec((s) => {
+                if (!isHeatmapChartSpec(s)) return
+                s.layout.height = checked ? 'auto' : 400
+              })
+            }
+          />
+          <InspectorReveal show={heatmapLayout != null && heatmapLayout.height !== 'auto'}>
+            <SliderControl
+              label="Fixed height"
+              value={typeof heatmapLayout?.height === 'number' ? heatmapLayout.height : 400}
+              min={200}
+              max={900}
+              step={10}
+              onChange={(v) =>
+                setSpec((s) => {
+                  if (isHeatmapChartSpec(s)) s.layout.height = v
+                })
+              }
+            />
+          </InspectorReveal>
+          <SliderControl
+            label="Cell corner radius"
+            value={spec.geometry.cornerRadius}
+            min={0}
+            max={64}
+            onChange={(v) => setSharedSpec((s) => { s.geometry.cornerRadius = v })}
+          />
+          <SwitchRow
+            label="Lock width and height"
+            checked={heatmapLayout?.lockCellSize ?? true}
+            onCheckedChange={(checked) =>
+              setSpec((s) => {
+                if (!isHeatmapChartSpec(s)) return
+                s.layout.lockCellSize = checked
+                if (checked) {
+                  const n = Math.max(s.layout.cellWidth, s.layout.cellHeight)
+                  s.layout.cellWidth = n
+                  s.layout.cellHeight = n
+                }
+              })
+            }
+          />
+          <SliderControl
+            label={heatmapLayout?.lockCellSize ? 'Cell size' : 'Cell width'}
+            value={heatmapLayout?.cellWidth ?? 40}
+            min={12}
+            max={120}
+            step={1}
+            onChange={(v) =>
+              setSpec((s) => {
+                if (!isHeatmapChartSpec(s)) return
+                s.layout.cellWidth = v
+                if (s.layout.lockCellSize) s.layout.cellHeight = v
+              })
+            }
+          />
+          <InspectorReveal show={heatmapLayout != null && !heatmapLayout.lockCellSize}>
+            <SliderControl
+              label="Cell height"
+              value={heatmapLayout?.cellHeight ?? 40}
+              min={12}
+              max={120}
+              step={1}
+              onChange={(v) =>
+                setSpec((s) => {
+                  if (!isHeatmapChartSpec(s)) return
+                  s.layout.cellHeight = v
+                })
+              }
+            />
+          </InspectorReveal>
+          <SliderControl
+            label="Gap"
+            value={heatmapLayout?.gap ?? 4}
+            min={0}
+            max={32}
+            step={1}
+            onChange={(v) =>
+              setSpec((s) => {
+                if (!isHeatmapChartSpec(s)) return
+                s.layout.gap = v
+              })
+            }
+          />
+          <SliderControl
+            label="Cell opacity"
+            value={spec.geometry.opacity}
+            min={0}
+            max={1}
+            step={0.05}
+            onChange={(v) => setSharedSpec((s) => { s.geometry.opacity = v })}
+          />
+          <SliderControl
+            label="Cell border width"
+            value={spec.geometry.borderWidth}
+            min={0}
+            max={4}
+            step={0.5}
+            onChange={(v) => setSharedSpec((s) => { s.geometry.borderWidth = v })}
+          />
+        </InspectorReveal>
 
         <InspectorReveal show={cartLayout != null}>
           <SwitchRow
@@ -90,7 +203,6 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
             />
           </InspectorReveal>
           <InspectorSelect
-            label="Bar layout"
             value={cartLayout?.barLayout ?? 'grouped'}
             options={[
               { value: 'grouped', label: 'Grouped' },
@@ -125,6 +237,16 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
               max={32}
               step={1}
               onChange={(v) => setSharedSpec((s) => { s.geometry.barGap = v })}
+            />
+          </InspectorReveal>
+          <InspectorReveal show={showStackGap}>
+            <SliderControl
+              label="Stack gap"
+              value={spec.geometry.stackGap ?? 0}
+              min={0}
+              max={32}
+              step={1}
+              onChange={(v) => setSharedSpec((s) => { s.geometry.stackGap = v })}
             />
           </InspectorReveal>
           <SliderControl
@@ -268,7 +390,10 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
         </InspectorReveal>
       </InspectorSection>
 
-      <InspectorSection title="Type & labels">
+      <InspectorSection
+        title={isHeatmap ? 'Typography & cell values' : 'Type & labels'}
+        defaultOpen={false}
+      >
         <InspectorTextField
           label="Font family"
           value={spec.typography.fontFamily}
@@ -284,13 +409,13 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
           onChange={(v) => setSharedSpec((s) => { s.typography.baseFontSize = v })}
         />
         <InspectorTextField
-          label="Value font (%, numbers)"
+          label={isHeatmap ? 'Cell value font' : 'Value font (%, numbers)'}
           value={spec.labels.valueFontFamily}
           onChange={(v) => setSharedSpec((s) => { s.labels.valueFontFamily = v })}
           placeholder="DM Mono"
         />
         <InspectorSelect
-          label="Value format"
+          label={isHeatmap ? 'Cell value format' : 'Value format'}
           value={spec.labels.valueFormat.style}
           options={[
             { value: 'percent', label: 'Percent' },
@@ -321,102 +446,206 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
           onChange={(v) => setSharedSpec((s) => { s.labels.valueFormat.suffix = v })}
         />
         <SwitchRow
-          label="Show labels"
+          label={isHeatmap ? 'Show values in cells' : 'Show labels'}
           checked={spec.labels.show}
           onCheckedChange={(checked) => setSharedSpec((s) => { s.labels.show = checked })}
         />
         <InspectorTextField
-          label="Template ({value}, {label})"
+          label={isHeatmap ? 'Cell template ({value}, {label})' : 'Template ({value}, {label})'}
           value={spec.labels.template}
           onChange={(v) => setSharedSpec((s) => { s.labels.template = v })}
         />
         <SliderControl
-          label="Inset from bar start"
-          value={spec.labels.insetX}
-          min={0}
+          label="Vertical label offset"
+          value={spec.labels.insetY ?? 0}
+          min={-32}
           max={32}
           step={1}
-          onChange={(v) => setSharedSpec((s) => { s.labels.insetX = v })}
+          formatValue={(v) => `${v > 0 ? '+' : ''}${Math.round(v)}px`}
+          onChange={(v) => setSharedSpec((s) => { s.labels.insetY = v })}
         />
-        <SliderControl
-          label="Value column width"
-          value={spec.labels.valueColumnWidth}
-          min={24}
-          max={120}
-          step={1}
-          onChange={(v) => setSharedSpec((s) => { s.labels.valueColumnWidth = v })}
-        />
-        <SliderControl
-          label="Gap: value → name"
-          value={spec.labels.valueLabelGap}
-          min={0}
-          max={32}
-          step={1}
-          onChange={(v) => setSharedSpec((s) => { s.labels.valueLabelGap = v })}
-        />
-        <InspectorSelect
-          label="Position (reserved)"
-          value={spec.labels.position}
-          options={[
-            { value: 'inside', label: 'Inside' },
-            { value: 'outside', label: 'Outside' },
-            { value: 'auto', label: 'Auto' },
-          ]}
-          onChange={(v) =>
-            setSharedSpec((s) => {
-              s.labels.position = v as 'inside' | 'outside' | 'auto'
-            })
-          }
-        />
-        <InspectorSelect
-          label="Overflow"
-          value={spec.labels.labelOverflow}
-          options={[
-            { value: 'overflow', label: 'Overflow' },
-            { value: 'clip', label: 'Clip' },
-            { value: 'outside', label: 'Outside' },
-          ]}
-          onChange={(v) =>
-            setSharedSpec((s) => {
-              s.labels.labelOverflow = v as 'clip' | 'overflow' | 'outside'
-            })
-          }
-        />
-        <SliderControl
-          label="X tick font size"
-          value={spec.axes.x.fontSize}
-          min={8}
-          max={18}
-          step={1}
-          onChange={(v) => setSharedSpec((s) => { s.axes.x.fontSize = v })}
-        />
-        <SliderControl
-          label="Y tick font size"
-          value={spec.axes.y.fontSize}
-          min={8}
-          max={18}
-          step={1}
-          onChange={(v) => setSharedSpec((s) => { s.axes.y.fontSize = v })}
-        />
-        <SliderControl
-          label="Legend font size"
-          value={spec.legend.fontSize}
-          min={8}
-          max={18}
-          step={1}
-          onChange={(v) => setSharedSpec((s) => { s.legend.fontSize = v })}
-        />
-        <SliderControl
-          label="Tooltip font size"
-          value={spec.tooltip.fontSize}
-          min={8}
-          max={18}
-          step={1}
-          onChange={(v) => setSharedSpec((s) => { s.tooltip.fontSize = v })}
-        />
+        <InspectorReveal show={!isHeatmap}>
+          <SliderControl
+            label="Inset from bar start"
+            value={spec.labels.insetX}
+            min={0}
+            max={32}
+            step={1}
+            onChange={(v) => setSharedSpec((s) => { s.labels.insetX = v })}
+          />
+          <SliderControl
+            label="Value column width"
+            value={spec.labels.valueColumnWidth}
+            min={24}
+            max={120}
+            step={1}
+            onChange={(v) => setSharedSpec((s) => { s.labels.valueColumnWidth = v })}
+          />
+          <SliderControl
+            label="Gap: value → name"
+            value={spec.labels.valueLabelGap}
+            min={0}
+            max={32}
+            step={1}
+            onChange={(v) => setSharedSpec((s) => { s.labels.valueLabelGap = v })}
+          />
+          <InspectorSelect
+            label="Position (reserved)"
+            value={spec.labels.position}
+            options={[
+              { value: 'inside', label: 'Inside' },
+              { value: 'outside', label: 'Outside' },
+              { value: 'auto', label: 'Auto' },
+            ]}
+            onChange={(v) =>
+              setSharedSpec((s) => {
+                s.labels.position = v as 'inside' | 'outside' | 'auto'
+              })
+            }
+          />
+          <InspectorSelect
+            label="Overflow"
+            value={spec.labels.labelOverflow}
+            options={[
+              { value: 'fade', label: 'Fade' },
+              { value: 'overflow', label: 'Overflow' },
+              { value: 'outside', label: 'Outside' },
+            ]}
+            onChange={(v) =>
+              setSharedSpec((s) => {
+                s.labels.labelOverflow = v as 'fade' | 'overflow' | 'outside'
+              })
+            }
+          />
+        </InspectorReveal>
+        <InspectorReveal show={isHeatmap}>
+          <SliderControl
+            label="Column label size"
+            value={spec.axes.x.fontSize}
+            min={8}
+            max={18}
+            step={1}
+            onChange={(v) => setSharedSpec((s) => { s.axes.x.fontSize = v })}
+          />
+          <SliderControl
+            label="Row label size"
+            value={spec.axes.y.fontSize}
+            min={8}
+            max={18}
+            step={1}
+            onChange={(v) => setSharedSpec((s) => { s.axes.y.fontSize = v })}
+          />
+          <SliderControl
+            label="Color scale label size"
+            value={spec.legend.fontSize}
+            min={8}
+            max={18}
+            step={1}
+            onChange={(v) => setSharedSpec((s) => { s.legend.fontSize = v })}
+          />
+        </InspectorReveal>
+        <InspectorReveal show={!isHeatmap}>
+          <SliderControl
+            label="X tick font size"
+            value={spec.axes.x.fontSize}
+            min={8}
+            max={18}
+            step={1}
+            onChange={(v) => setSharedSpec((s) => { s.axes.x.fontSize = v })}
+          />
+          <SliderControl
+            label="Y tick font size"
+            value={spec.axes.y.fontSize}
+            min={8}
+            max={18}
+            step={1}
+            onChange={(v) => setSharedSpec((s) => { s.axes.y.fontSize = v })}
+          />
+          <SliderControl
+            label="Legend font size"
+            value={spec.legend.fontSize}
+            min={8}
+            max={18}
+            step={1}
+            onChange={(v) => setSharedSpec((s) => { s.legend.fontSize = v })}
+          />
+        </InspectorReveal>
       </InspectorSection>
 
-      <InspectorSection title="Axes & overlays">
+      <InspectorSection
+        title={isHeatmap ? 'Labels & scale' : 'Axes & overlays'}
+        defaultOpen={false}
+      >
+        <InspectorReveal show={isHeatmap}>
+          <SwitchRow
+            label="Column labels (bottom)"
+            checked={spec.axes.x.show}
+            onCheckedChange={(checked) => setSharedSpec((s) => { s.axes.x.show = checked })}
+          />
+          <SwitchRow
+            label="Row labels (left)"
+            checked={spec.axes.y.show}
+            onCheckedChange={(checked) => setSharedSpec((s) => { s.axes.y.show = checked })}
+          />
+          <InspectorReveal show={spec.axes.x.show}>
+            <SliderControl
+              label="Column label X"
+              value={heatmapLayout?.columnLabelOffsetX ?? 0}
+              min={-80}
+              max={80}
+              step={1}
+              onChange={(v) =>
+                setSpec((s) => {
+                  if (isHeatmapChartSpec(s)) s.layout.columnLabelOffsetX = v
+                })
+              }
+            />
+            <SliderControl
+              label="Column label Y"
+              value={heatmapLayout?.columnLabelOffsetY ?? 0}
+              min={-40}
+              max={80}
+              step={1}
+              onChange={(v) =>
+                setSpec((s) => {
+                  if (isHeatmapChartSpec(s)) s.layout.columnLabelOffsetY = v
+                })
+              }
+            />
+          </InspectorReveal>
+          <InspectorReveal show={spec.axes.y.show}>
+            <SliderControl
+              label="Row label X"
+              value={heatmapLayout?.rowLabelOffsetX ?? 0}
+              min={-80}
+              max={80}
+              step={1}
+              onChange={(v) =>
+                setSpec((s) => {
+                  if (isHeatmapChartSpec(s)) s.layout.rowLabelOffsetX = v
+                })
+              }
+            />
+            <SliderControl
+              label="Row label Y"
+              value={heatmapLayout?.rowLabelOffsetY ?? 0}
+              min={-40}
+              max={40}
+              step={1}
+              onChange={(v) =>
+                setSpec((s) => {
+                  if (isHeatmapChartSpec(s)) s.layout.rowLabelOffsetY = v
+                })
+              }
+            />
+          </InspectorReveal>
+          <SwitchRow
+            label="Color scale"
+            checked={spec.legend.show}
+            onCheckedChange={(checked) => setSharedSpec((s) => { s.legend.show = checked })}
+          />
+        </InspectorReveal>
+
         <InspectorReveal show={cartLayout != null}>
           <SwitchRow
             label="X axis"
@@ -494,37 +723,33 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
           </InspectorReveal>
         </InspectorReveal>
 
-        <SwitchRow
-          label="Show legend"
-          checked={spec.legend.show}
-          onCheckedChange={(checked) => setSharedSpec((s) => { s.legend.show = checked })}
-        />
-        <InspectorReveal show={spec.legend.show}>
-          <InspectorSelect
-            label="Position"
-            value={spec.legend.position}
-            options={[
-              { value: 'top', label: 'Top' },
-              { value: 'bottom', label: 'Bottom' },
-              { value: 'left', label: 'Left' },
-              { value: 'right', label: 'Right' },
-            ]}
-            onChange={(v) =>
-              setSharedSpec((s) => {
-                s.legend.position = v as 'top' | 'bottom' | 'left' | 'right'
-              })
-            }
+        <InspectorReveal show={!isHeatmap}>
+          <SwitchRow
+            label="Show legend"
+            checked={spec.legend.show}
+            onCheckedChange={(checked) => setSharedSpec((s) => { s.legend.show = checked })}
           />
+          <InspectorReveal show={spec.legend.show}>
+            <InspectorSelect
+              label="Position"
+              value={spec.legend.position}
+              options={[
+                { value: 'top', label: 'Top' },
+                { value: 'bottom', label: 'Bottom' },
+                { value: 'left', label: 'Left' },
+                { value: 'right', label: 'Right' },
+              ]}
+              onChange={(v) =>
+                setSharedSpec((s) => {
+                  s.legend.position = v as 'top' | 'bottom' | 'left' | 'right'
+                })
+              }
+            />
+          </InspectorReveal>
         </InspectorReveal>
-
-        <SwitchRow
-          label="Show tooltip"
-          checked={spec.tooltip.show}
-          onCheckedChange={(checked) => setSharedSpec((s) => { s.tooltip.show = checked })}
-        />
       </InspectorSection>
 
-      <InspectorSection title="Interaction & animation">
+      <InspectorSection title="Interaction & animation" defaultOpen={false}>
         <SwitchRow
           label="Hover"
           checked={spec.interaction.hover}
@@ -572,7 +797,7 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
         />
 
         <InspectorSelect
-          label="Direction"
+          label={isHeatmap ? 'Cell reveal direction' : 'Direction'}
           value={spec.animation.direction}
           options={[
             { value: 'left-right', label: 'Left → right' },
@@ -586,20 +811,22 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
             })
           }
         />
-        <InspectorSelect
-          label="Trigger (metadata)"
-          value={spec.animation.trigger}
-          options={[
-            { value: 'load', label: 'Load' },
-            { value: 'replay', label: 'Replay' },
-            { value: 'expand', label: 'Expand' },
-          ]}
-          onChange={(v) =>
-            setSharedSpec((s) => {
-              s.animation.trigger = v as ChartSpec['animation']['trigger']
-            })
-          }
-        />
+        <InspectorReveal show={!isHeatmap}>
+          <InspectorSelect
+            label="Trigger (metadata)"
+            value={spec.animation.trigger}
+            options={[
+              { value: 'load', label: 'Load' },
+              { value: 'replay', label: 'Replay' },
+              { value: 'expand', label: 'Expand' },
+            ]}
+            onChange={(v) =>
+              setSharedSpec((s) => {
+                s.animation.trigger = v as ChartSpec['animation']['trigger']
+              })
+            }
+          />
+        </InspectorReveal>
 
         <InspectorSelect
           label="Easing preset"
@@ -635,7 +862,7 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
         </InspectorReveal>
       </InspectorSection>
 
-      <InspectorSection title="Advanced">
+      <InspectorSection title="Advanced" defaultOpen={false}>
         <SwitchRow
           label="Auto device pixel ratio"
           checked={spec.renderer.devicePixelRatio === 'auto'}
@@ -662,7 +889,7 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
           checked={spec.renderer.antialias}
           onCheckedChange={(checked) => setSharedSpec((s) => { s.renderer.antialias = checked })}
         />
-        <InspectorReveal show={listLayout != null}>
+        <InspectorReveal show={listLayout != null && !isHeatmap}>
           <SwitchRow
             label="Chevrons (reserved)"
             checked={listLayout?.showChevron ?? false}

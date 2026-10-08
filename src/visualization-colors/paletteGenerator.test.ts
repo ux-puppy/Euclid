@@ -94,7 +94,7 @@ describe('paletteGenerator', () => {
     expect(hues[2]).toBeCloseTo(90, 5)
   })
 
-  it('uses even hue gaps when excess off and smart ordering off', () => {
+  it('uses even wheel steps when excess off and smart ordering off', () => {
     const cfg = {
       ...DEFAULT_VISUALIZATION_PALETTE,
       startHue: 0,
@@ -105,20 +105,21 @@ describe('paletteGenerator', () => {
       },
     }
     const hues = generateBaseColors(cfg, 4).map((b) => b.hue)
-    expect(hues[1]).toBeCloseTo(90, 5)
+    expect(hues[0]).toBeCloseTo(0, 5)
+    expect(hues[1]).toBeCloseTo(270, 5)
     expect(hues[2]).toBeCloseTo(180, 5)
-    expect(hues[3]).toBeCloseTo(270, 5)
+    expect(hues[3]).toBeCloseTo(90, 5)
   })
 
-  it('spaces N hues evenly by default for N ≤ 12', () => {
+  it('spaces N hues evenly on the wheel by default for N ≤ 12', () => {
     const cfg = { ...DEFAULT_VISUALIZATION_PALETTE, startHue: 0 }
     const two = generateBaseColors(cfg, 2).map((b) => b.hue)
     expect(two[0]).toBeCloseTo(0, 5)
     expect(two[1]).toBeCloseTo(180, 5)
     const three = generateBaseColors(cfg, 3).map((b) => b.hue)
     expect(three[0]).toBeCloseTo(0, 5)
-    expect(three[1]).toBeCloseTo(120, 5)
-    expect(three[2]).toBeCloseTo(240, 5)
+    expect(three[1]).toBeCloseTo(240, 5)
+    expect(three[2]).toBeCloseTo(120, 5)
   })
 
   it('uses greedy order for three hues (third between first two)', () => {

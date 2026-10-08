@@ -1,9 +1,9 @@
 import type { DataNode, TreePatternId } from '../../chart-spec/types'
 import { mulberry32, randomInt } from '../prng'
-import { COUNTRY_NAMES, geoNameForTreeDepth } from './geoLabels'
+import { SPECIES_NAMES, animalNameForTreeDepth } from './animalLabels'
 
 function pickName(_rng: () => number, depth: number, index: number): string {
-  return geoNameForTreeDepth(depth, index)
+  return animalNameForTreeDepth(depth, index)
 }
 
 function distributeShares(count: number, rng: () => number): number[] {
@@ -73,12 +73,12 @@ export function generateTreeRoot(
   params: { maxDepth: number; branchMin: number; branchMax: number },
 ): DataNode {
   const rng = mulberry32(seed)
-  const rootLabel = COUNTRY_NAMES[0]!
+  const rootLabel = SPECIES_NAMES[0]!
   const root = buildNode(
     rng,
     'root-0',
     rootLabel,
-    1,
+    100,
     0,
     params.maxDepth,
     params.branchMin,
@@ -106,12 +106,12 @@ export function generateTreeRoot(
     }
     const sum = roots.reduce((s, n) => s + n.value, 0)
     roots.forEach((n) => {
-      n.value = n.value / sum
+      n.value = (n.value / sum) * 100
     })
     return {
       id: 'virtual-root',
       label: 'All',
-      value: 1,
+      value: 100,
       children: roots,
     }
   }

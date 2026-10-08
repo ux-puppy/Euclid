@@ -1,20 +1,17 @@
 import { MagnifyingGlassMinus, MagnifyingGlassPlus, Play } from '@phosphor-icons/react'
 import { useRef } from 'react'
 import { ChartCanvas, type ChartCanvasHandle } from './ChartCanvas'
+import { FloatingPaletteWheel } from './FloatingPaletteWheel'
 import {
   useEditorStore,
-  VARIANT_LABELS,
+  CHART_LABELS,
 } from '../../store/editorStore'
-import { resolveSurfaceForTheme } from '../../chart-spec/surfaceColors'
-import type { ChartVariant } from '../../chart-spec/types'
+import type { EditorChartId } from '../../chart-spec/types'
 import { Button } from '../ui/button'
 import { SwitchRow } from './inspector/SwitchRow'
 import { cn } from '../../lib/utils'
-const PREVIEW_VARIANTS: ChartVariant[] = ['classic', 'breakdown', 'hierarchy']
-
-/** Preview shell chrome — not tied to chart spec containerCornerRadius. */
-const PREVIEW_SHELL_RADIUS =
-  'rounded-tl-[6px] rounded-tr-[12px] rounded-bl-[6px] rounded-br-[12px]'
+import { EDITOR_PANEL_SHELL_BG, EDITOR_PANEL_SHELL_RADIUS } from './editorShellChrome'
+const PREVIEW_CHARTS: EditorChartId[] = ['classic', 'breakdown', 'hierarchy', 'heatmap']
 
 const PREVIEW_GALLERY_CARD_RADIUS_PX = 10
 
@@ -27,9 +24,11 @@ export function PreviewPane() {
   const zoomTo100 = useEditorStore((s) => s.zoomTo100)
   const spec = useEditorStore((s) => s.spec)
   const specsByVariant = useEditorStore((s) => s.specsByVariant)
+  const heatmapSpec = useEditorStore((s) => s.heatmapSpec)
+  const selectedChart = useEditorStore((s) => s.selectedChart)
   const showAllCharts = useEditorStore((s) => s.ui.previewShowAllCharts)
   const setPreviewShowAllCharts = useEditorStore((s) => s.setPreviewShowAllCharts)
-  const selectVariant = useEditorStore((s) => s.selectVariant)
+  const selectChart = useEditorStore((s) => s.selectChart)
   const expandAll = useEditorStore((s) => s.expandAll)
   const collapseAll = useEditorStore((s) => s.collapseAll)
   const beginTreeLayoutAnim = useEditorStore((s) => s.beginTreeLayoutAnim)
@@ -39,10 +38,6 @@ export function PreviewPane() {
     beginTreeLayoutAnim(canvasRef.current?.getDisplaySceneHeight() ?? 400)
     action()
   }
-  const tooltip = useEditorStore((s) => s.ui.tooltip)
-  const theme = useEditorStore((s) => s.ui.theme)
-  const chartSurface = resolveSurfaceForTheme(spec.colors, theme)
-
   const showExpand =
     spec.layout.mode === 'list' &&
     spec.layout.showExpandAllControl &&
@@ -53,8 +48,9 @@ export function PreviewPane() {
   return (
     <div
       className={cn(
-        'flex flex-1 flex-col min-w-0 h-full min-h-0 bg-panel overflow-hidden',
-        PREVIEW_SHELL_RADIUS,
+        'flex flex-1 flex-col min-w-0 h-full min-h-0 overflow-hidden',
+        EDITOR_PANEL_SHELL_BG,
+        EDITOR_PANEL_SHELL_RADIUS,
       )}
     >
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border shrink-0 min-h-[42px] flex-wrap">
@@ -111,21 +107,23 @@ export function PreviewPane() {
         </div>
       </div>
 
+      <div className="relative flex flex-1 min-h-0 min-w-0 flex-col">
       {showAllCharts ? (
         <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-hidden p-3 box-border">
-            {PREVIEW_VARIANTS.map((variant) => {
-              const chartSpec = specsByVariant[variant]
-              const selected = spec.variant === variant
+            {PREVIEW_CHARTS.map((chartId) => {
+              const chartSpec =
+                chartId === 'heatmap' ? heatmapSpec : specsByVariant[chartId]
+              const selected = selectedChart === chartId
               return (
                 <div
-                  key={variant}
+                  key={chartId}
                   role="button"
                   tabIndex={0}
-                  onClick={() => selectVariant(variant)}
+                  onClick={() => selectChart(chartId)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault()
-                      selectVariant(variant)
+                      selectChart(chartId)
                     }
                   }}
                   className={cn(
@@ -143,7 +141,7 @@ export function PreviewPane() {
                       selected ? 'text-foreground bg-accent/40' : 'text-muted-foreground',
                     )}
                   >
-                    {VARIANT_LABELS[variant]}
+                    {CHART_LABELS[chartId]}
                     {selected ? ' · selected' : ''}
                   </div>
                   <div className="flex min-h-0 flex-1 flex-col">
@@ -162,21 +160,8 @@ export function PreviewPane() {
       ) : (
         <ChartCanvas ref={canvasRef} />
       )}
-
-      {tooltip && spec.tooltip.show && (
-        <div
-          className="fixed z-50 pointer-events-none px-2 py-1 rounded text-xs shadow-lg border border-border"
-          style={{
-            left: tooltip.x + 12,
-            top: tooltip.y + 12,
-            background: chartSurface.tooltip,
-            color: chartSurface.hover,
-            fontSize: spec.tooltip.fontSize,
-          }}
-        >
-          {tooltip.text}
-        </div>
-      )}
+      <FloatingPaletteWheel />
+      </div>
     </div>
   )
 }

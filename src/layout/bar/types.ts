@@ -1,6 +1,34 @@
+export type HeatmapCellScene = {
+  kind: 'heatmapCell'
+  id: string
+  x: number
+  y: number
+  width: number
+  height: number
+  fill: string
+  stroke: string
+  label: string
+  labelColor: string
+  state: 'default' | 'hover' | 'selected'
+  progress: number
+}
+
+export type HeatmapColorLegendScene = {
+  kind: 'heatmapColorLegend'
+  x: number
+  y: number
+  width: number
+  height: number
+  minLabel: string
+  maxLabel: string
+  midLabel?: string
+  /** Left-to-right sample colors. */
+  samples: string[]
+}
+
 export type HitRegion = {
   id: string
-  kind: 'bar' | 'chevron' | 'legend'
+  kind: 'bar' | 'chevron' | 'legend' | 'heatmapCell'
   x: number
   y: number
   width: number
@@ -23,6 +51,8 @@ export type BarRowScene = {
   labelX: number
   labelValueText?: string
   labelNameText?: string
+  /** Bar-fill contrast for inside labels (value color encoding). */
+  labelColor?: string
   depth?: number
   hasChildren?: boolean
   expanded?: boolean
@@ -58,6 +88,13 @@ export type AxisScene = {
     lx: number
     ly: number
     textAlign?: CanvasTextAlign
+    /** Multi-line category labels (heatmap Y axis). */
+    labelLines?: string[]
+    lineHeight?: number
+    /** Radians; e.g. -π/2 for vertical column labels. */
+    labelRotation?: number
+    fontSize?: number
+    fontFamily?: string
   }[]
 }
 
@@ -83,6 +120,8 @@ export type SceneGraph = {
   height: number
   background: string
   barRows: BarRowScene[]
+  heatmapCells: HeatmapCellScene[]
+  heatmapColorLegend: HeatmapColorLegendScene | null
   groupTitles: GroupTitleScene[]
   axes: AxisScene[]
   gridLines: GridLineScene[]

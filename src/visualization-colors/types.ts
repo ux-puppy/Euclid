@@ -37,7 +37,7 @@ export type ExcessColorMode = 'repeatWithShift' | 'lightness' | 'chroma' | 'hue'
 
 export type ExcessColorHandling = {
   enabled: boolean
-  /** Feature applies to color index ≥ this count (2–32). */
+  /** Feature applies to color index ≥ this count (2–16). */
   activateAfter: number
   mode: ExcessColorMode
   /** Hue offset per repeat cycle when mode is `repeatWithShift`. */

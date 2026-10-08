@@ -1,3 +1,5 @@
+import type { BarChartSpec } from '../chart-spec/types'
+import { isBarChartSpec } from '../chart-spec/types'
 import type { ChartSpec } from '../chart-spec/types'
 import { reconcileAssignments } from './categoryAssignment'
 import { requiredColorCount } from './resolve'
@@ -14,6 +16,11 @@ export function orderedAssignmentIds(spec: ChartSpec): string[] {
 }
 
 export function syncPaletteAssignments(spec: ChartSpec): void {
+  if (!isBarChartSpec(spec)) return
+  syncBarPaletteAssignments(spec)
+}
+
+export function syncBarPaletteAssignments(spec: BarChartSpec): void {
   const ids = orderedAssignmentIds(spec)
   const paletteSize = Math.max(requiredColorCount(spec), ids.length, 1)
   spec.colors.visualization.assignments = reconcileAssignments(

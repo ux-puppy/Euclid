@@ -1,7 +1,12 @@
 import { CaretRight } from '@phosphor-icons/react'
 import { useState, type KeyboardEvent, type ReactNode } from 'react'
 import { cn } from '../../../lib/utils'
-import { inspectorField } from './inspectorStyles'
+import {
+  inspectorField,
+  inspectorSectionBodyPadding,
+  inspectorSectionHeaderGap,
+  inspectorStackGap,
+} from './inspectorStyles'
 import { InspectorReveal } from './InspectorReveal'
 
 export type InspectorSectionProps = {
@@ -9,7 +14,7 @@ export type InspectorSectionProps = {
   headerRight?: ReactNode
   children: ReactNode
   className?: string
-  /** Vertical gap between fields (Figma: 6px default, OKLCH block uses 12px). */
+  /** Override vertical gap between fields (default: `inspectorStackGap`). */
   contentClassName?: string
   defaultOpen?: boolean
   /** Non-interactive content (e.g. theme-inactive palette targets). */
@@ -28,10 +33,10 @@ export function InspectorSection({
 }: InspectorSectionProps) {
   const [open, setOpen] = useState(defaultOpen)
 
-  const onCollapsedKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+  const onToggleKeyDown = (expand: boolean) => (e: KeyboardEvent<HTMLElement>) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
-      setOpen(true)
+      setOpen(expand)
     }
   }
 
@@ -54,53 +59,43 @@ export function InspectorSection({
     <section
       className={cn(
         'flex w-full min-w-0 flex-col border-b border-border transition-colors duration-100',
+        open && inspectorSectionHeaderGap,
         !open && 'cursor-pointer hover:bg-inspector-section-hover',
         className,
       )}
       onClick={!open ? () => setOpen(true) : undefined}
-      onKeyDown={!open ? onCollapsedKeyDown : undefined}
+      onKeyDown={!open ? onToggleKeyDown(true) : undefined}
       tabIndex={!open ? 0 : undefined}
       role={!open ? 'button' : undefined}
       aria-expanded={open}
     >
-      <div className="flex w-full min-w-0 items-center justify-between px-3.5 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          {open ? (
-            <button
-              type="button"
-              className="min-w-0 cursor-pointer text-left"
-              onClick={() => setOpen(false)}
-            >
-              <h3 className={titleClass}>{title}</h3>
-            </button>
-          ) : (
-            <h3 className={cn(titleClass, 'pointer-events-none')}>{title}</h3>
-          )}
+      <div
+        className={cn(
+          'flex w-full min-w-0 items-center justify-between px-3.5 pt-3',
+          open ? 'cursor-pointer pb-1 hover:bg-inspector-section-hover' : 'pb-3',
+        )}
+        onClick={open ? () => setOpen(false) : undefined}
+        onKeyDown={open ? onToggleKeyDown(false) : undefined}
+        tabIndex={open ? 0 : undefined}
+        role={open ? 'button' : undefined}
+        aria-label={open ? `Collapse ${title}` : undefined}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <h3 className={cn(titleClass, !open && 'pointer-events-none')}>{title}</h3>
           {headerRight ? (
             <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
               {headerRight}
             </div>
           ) : null}
         </div>
-        {open ? (
-          <button
-            type="button"
-            className="shrink-0 cursor-pointer"
-            aria-label={`Collapse ${title}`}
-            onClick={() => setOpen(false)}
-          >
-            {caret}
-          </button>
-        ) : (
-          <div className="pointer-events-none shrink-0">{caret}</div>
-        )}
+        <div className={cn('shrink-0', !open && 'pointer-events-none')}>{caret}</div>
       </div>
       <InspectorReveal
         show={open}
-        pullUpWhenClosed={false}
+        animated
         innerClassName={cn(
-          'px-3.5 pb-3.5',
-          contentClassName ?? 'gap-1.5',
+          inspectorSectionBodyPadding,
+          contentClassName ?? inspectorStackGap,
           inspectorField,
           disabled && 'pointer-events-none opacity-40',
         )}

@@ -19,6 +19,8 @@ export type PatternId = TabularPatternId | TreePatternId | 'custom'
 
 export type Provenance = {
   pattern: PatternId
+  /** Value shape across series (columns / subspecies); defaults to `pattern` when omitted. */
+  seriesPattern?: TabularPatternId
   seed: number
   params: Record<string, number>
 } | null
@@ -31,11 +33,19 @@ export type DataNode = {
   children?: DataNode[]
 }
 
+/** Categories × series grid: each category is a parent bar; series are stack segments. */
+export type TabularCompositionGrid = {
+  categories: string[]
+  series: { id: string; name: string; values: number[] }[]
+}
+
 export type TabularData = {
   shape: 'tabular'
   categories: string[]
   series: { id: string; name: string; values: number[] }[]
   provenance: Provenance
+  /** Classic bundle: full parent/child matrix for cartesian stacked (from breakdown). */
+  composition?: TabularCompositionGrid
 }
 
 export type TreeData = {
@@ -121,6 +131,7 @@ export type AnimationConfig = {
   trigger: 'load' | 'replay' | 'expand'
 }
 
+import type { HeatmapColorConfig } from '../heatmap-colors/types'
 import type { VisualizationPaletteConfig } from '../visualization-colors/types'
 
 export type ChartSurfaceColors = {
@@ -142,10 +153,23 @@ export type ChartSurfaceByTheme = {
   dark: ChartSurfaceColors
 }
 
-export type ChartColors = {
+export type BarColorEncoding = 'categorical' | 'value'
+
+export type BarChartColors = {
   surfaceByTheme: ChartSurfaceByTheme
+  /** Categorical = OKLCH series palette; value = heatmap scale by bar magnitude. */
+  encoding: BarColorEncoding
   visualization: VisualizationPaletteConfig
+  heatmap: HeatmapColorConfig
 }
+
+export type HeatmapChartColors = {
+  surfaceByTheme: ChartSurfaceByTheme
+  heatmap: HeatmapColorConfig
+}
+
+/** @deprecated Use BarChartColors */
+export type ChartColors = BarChartColors
 
 /** @deprecated Use ChartSurfaceColors; kept for preset migration helpers. */
 export type ColorTokens = ChartSurfaceColors & {
@@ -153,48 +177,74 @@ export type ColorTokens = ChartSurfaceColors & {
   depth: string[]
 }
 
-export type ChartSpec = {
+export type HeatmapLayout = {
+  mode: 'heatmap'
+  width: number
+  height: number | 'auto'
+  padding: Padding
+  /** Fixed cell width (px). */
+  cellWidth: number
+  /** Fixed cell height (px). */
+  cellHeight: number
+  /** When true, changing width or height updates the other to match. */
+  lockCellSize: boolean
+  /** Gap between cells (rows and columns). */
+  gap: number
+  /** Nudge column labels horizontally (px). */
+  columnLabelOffsetX: number
+  /** Nudge column labels vertically from default anchor below grid (px). */
+  columnLabelOffsetY: number
+  /** Nudge row labels horizontally from default anchor (px). */
+  rowLabelOffsetX: number
+  /** Nudge row labels vertically (px). */
+  rowLabelOffsetY: number
+}
+
+export type ChartGeometry = {
+  barThickness: number
+  barGap: number
+  /** Horizontal gap between segments in a stacked bar (px). */
+  stackGap: number
+  groupGap: number
+  cornerRadius: number
+  opacity: number
+  borderWidth: number
+}
+
+export type ChartLabels = {
+  show: boolean
+  position: 'inside' | 'outside' | 'auto'
+  template: string
+  /** Horizontal inset from the bar start (px). */
+  insetX: number
+  /** Vertical offset from bar/cell center (px); positive moves down. */
+  insetY: number
+  /** Gap between formatted value and label name (px). */
+  valueLabelGap: number
+  /** Fixed width (px) for the value column so names align across rows. */
+  valueColumnWidth: number
+  labelOverflow: 'fade' | 'clip' | 'overflow' | 'outside'
+  valueFontFamily: string
+  valueFormat: {
+    style: 'percent' | 'number'
+    decimals: number
+    prefix: string
+    suffix: string
+  }
+}
+
+export type SharedChartSpecBody = {
   schemaVersion: 2
-  chartType: 'bar'
-  variant: ChartVariant
   /** Uniform padding (px): preview inset + layout padding on all sides. */
   chartPadding: number
   /** Corner radius (px) of the preview panel container. */
   containerCornerRadius: number
-  data: ChartData
-  layout: ChartLayout
   typography: {
     fontFamily: string
     baseFontSize: number
   }
-  colors: ChartColors
-  geometry: {
-    barThickness: number
-    barGap: number
-    groupGap: number
-    cornerRadius: number
-    opacity: number
-    borderWidth: number
-  }
-  labels: {
-    show: boolean
-    position: 'inside' | 'outside' | 'auto'
-    template: string
-    /** Horizontal inset from the bar start (px). */
-    insetX: number
-    /** Gap between formatted value and label name (px). */
-    valueLabelGap: number
-    /** Fixed width (px) for the value column so names align across rows. */
-    valueColumnWidth: number
-    labelOverflow: 'clip' | 'overflow' | 'outside'
-    valueFontFamily: string
-    valueFormat: {
-      style: 'percent' | 'number'
-      decimals: number
-      prefix: string
-      suffix: string
-    }
-  }
+  geometry: ChartGeometry
+  labels: ChartLabels
   axes: { x: AxisConfig; y: AxisConfig }
   grid: GridConfig
   legend: LegendConfig
@@ -211,7 +261,40 @@ export type ChartSpec = {
   }
 }
 
-export function deriveVariant(data: ChartData, layout: ChartLayout): ChartVariant {
+export type BarChartSpec = SharedChartSpecBody & {
+  chartType: 'bar'
+  variant: ChartVariant
+  data: ChartData
+  layout: ChartLayout
+  colors: BarChartColors
+}
+
+export type HeatmapChartSpec = SharedChartSpecBody & {
+  chartType: 'heatmap'
+  variant: 'heatmap'
+  data: TabularData
+  layout: HeatmapLayout
+  colors: HeatmapChartColors
+}
+
+export type ChartSpec = BarChartSpec | HeatmapChartSpec
+
+export type EditorChartId = ChartVariant | 'heatmap'
+
+export function isBarChartSpec(spec: ChartSpec): spec is BarChartSpec {
+  return spec.chartType === 'bar'
+}
+
+export function isBarValueColorEncoding(colors: BarChartColors): boolean {
+  return colors.encoding === 'value'
+}
+
+export function isHeatmapChartSpec(spec: ChartSpec): spec is HeatmapChartSpec {
+  return spec.chartType === 'heatmap'
+}
+
+export function deriveVariant(data: ChartData, layout: ChartLayout | HeatmapLayout): ChartVariant {
+  if (layout.mode === 'heatmap') return 'classic'
   if (data.shape === 'tree' && layout.mode === 'list') return 'hierarchy'
   if (data.shape === 'tabular' && layout.mode === 'list') return 'breakdown'
   return 'classic'

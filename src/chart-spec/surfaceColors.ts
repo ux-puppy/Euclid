@@ -1,5 +1,6 @@
+import { normalizeHeatmapColors } from '../heatmap-colors/defaults'
 import { darkChartSurface, lightChartSurface } from './colorPresets'
-import type { ChartColors, ChartSurfaceColors } from './types'
+import type { BarChartColors, ChartSurfaceColors, HeatmapChartColors } from './types'
 import type { ChartTheme } from '../visualization-colors/types'
 
 /** Group titles / chrome use `text`; on-chart labels & legend use `textSecondary`. */
@@ -12,15 +13,15 @@ export function remapSurfaceTextRoles(surface: ChartSurfaceColors): ChartSurface
 }
 
 export function resolveSurfaceForTheme(
-  colors: ChartColors,
+  colors: BarChartColors | HeatmapChartColors,
   theme: ChartTheme,
 ): ChartSurfaceColors {
   return colors.surfaceByTheme[theme]
 }
 
 export function cloneSurfaceByTheme(
-  surfaceByTheme: ChartColors['surfaceByTheme'],
-): ChartColors['surfaceByTheme'] {
+  surfaceByTheme: BarChartColors['surfaceByTheme'],
+): BarChartColors['surfaceByTheme'] {
   return {
     light: completeChartSurface(surfaceByTheme.light, lightChartSurface),
     dark: completeChartSurface(surfaceByTheme.dark, darkChartSurface),
@@ -47,7 +48,9 @@ export function completeChartSurface(
 }
 
 type ColorsInput = {
-  visualization: ChartColors['visualization']
+  visualization: BarChartColors['visualization']
+  encoding?: BarChartColors['encoding']
+  heatmap?: Partial<BarChartColors['heatmap']>
   surface?: Partial<ChartSurfaceColors>
   surfaceByTheme?: {
     light: Partial<ChartSurfaceColors>
@@ -55,14 +58,19 @@ type ColorsInput = {
   }
 }
 
-export function normalizeChartColors(input: ColorsInput): ChartColors {
+export function normalizeChartColors(input: ColorsInput): BarChartColors {
+  const encoding = input.encoding ?? 'categorical'
+  const heatmap = normalizeHeatmapColors(input.heatmap)
+
   if (input.surfaceByTheme?.light && input.surfaceByTheme?.dark) {
     return {
       surfaceByTheme: {
         light: completeChartSurface(input.surfaceByTheme.light, lightChartSurface),
         dark: completeChartSurface(input.surfaceByTheme.dark, darkChartSurface),
       },
+      encoding,
       visualization: input.visualization,
+      heatmap,
     }
   }
 
@@ -73,6 +81,8 @@ export function normalizeChartColors(input: ColorsInput): ChartColors {
       light: completeChartSurface(remapped, lightChartSurface),
       dark: completeChartSurface(remapped, darkChartSurface),
     },
+    encoding,
     visualization: input.visualization,
+    heatmap,
   }
 }

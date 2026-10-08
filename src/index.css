@@ -9,6 +9,7 @@
   --color-foreground: var(--euclid-foreground);
   --color-muted-foreground: var(--euclid-muted-foreground);
   --color-panel: var(--euclid-panel);
+  --color-editor-shell: var(--euclid-editor-shell);
   --color-panel-elevated: var(--euclid-panel-elevated);
   --color-border: var(--euclid-border);
   --color-segment: var(--euclid-segment);
@@ -31,6 +32,7 @@
   --euclid-foreground: rgba(255, 255, 255, 0.8);
   --euclid-muted-foreground: rgba(255, 255, 255, 0.3);
   --euclid-panel: rgba(255, 255, 255, 0.05);
+  --euclid-editor-shell: rgba(255, 255, 255, 0.05);
   --euclid-panel-elevated: rgba(255, 255, 255, 0.1);
   --euclid-border: rgba(255, 255, 255, 0.05);
   --euclid-segment: rgba(255, 255, 255, 0.1);
@@ -48,14 +50,15 @@
 }
 
 :root.light {
-  --euclid-background: #f5f5f5;
+  --euclid-background: #ebebeb;
   --euclid-foreground: rgba(0, 0, 0, 0.85);
   --euclid-muted-foreground: rgba(0, 0, 0, 0.45);
   --euclid-panel: rgba(0, 0, 0, 0.04);
+  --euclid-editor-shell: #ffffff;
   --euclid-panel-elevated: rgba(0, 0, 0, 0.08);
   --euclid-border: rgba(0, 0, 0, 0.08);
   --euclid-segment: rgba(0, 0, 0, 0.06);
-  --euclid-segment-active: rgba(0, 0, 0, 0.75);
+  --euclid-segment-active: #d7d7d7;
   --euclid-control: rgba(0, 0, 0, 0.04);
   --euclid-control-hover: rgba(0, 0, 0, 0.07);
   --euclid-inspector-section-hover: rgba(0, 0, 0, 0.08);
@@ -65,7 +68,7 @@
   --euclid-switch-track-on: rgba(0, 0, 0, 0.22);
   --euclid-switch-border: rgba(0, 0, 0, 0.12);
   --euclid-switch-thumb: rgba(0, 0, 0, 0.55);
-  --euclid-segment-active-fg: rgba(255, 255, 255, 0.95);
+  --euclid-segment-active-fg: rgba(0, 0, 0, 0.85);
 }
 
 html,

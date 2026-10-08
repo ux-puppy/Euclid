@@ -25,21 +25,6 @@ export function formatLabelTemplate(
   return template.replace('{value}', formatted).replace('{label}', label).trim()
 }
 
-const TOOLTIP_VALUE_DECIMALS = 2
-
-export function formatTooltipMeta(
-  meta: Record<string, string | number | boolean>,
-): string {
-  return Object.entries(meta)
-    .map(([k, v]) => {
-      if (k === 'value' && typeof v === 'number') {
-        return `${k}: ${v.toFixed(TOOLTIP_VALUE_DECIMALS)}`
-      }
-      return `${k}: ${v}`
-    })
-    .join(' · ')
-}
-
 export function barLabelFields(
   template: string,
   value: number,
