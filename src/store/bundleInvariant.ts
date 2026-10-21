@@ -10,6 +10,7 @@ export function assertBundleInvariant(state: {
   selectedChart: EditorChartId
 }) {
   if (!import.meta.env.DEV) return
+  if (state.selectedChart === 'palette') return
   const slot =
     state.selectedChart === 'heatmap'
       ? state.heatmapSpec

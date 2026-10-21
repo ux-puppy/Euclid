@@ -16,9 +16,11 @@ import {
   bundleForExport,
   parseImportedJSON,
   parseImportedPayload,
+  sanitizeSelectedChartForPersist,
   specForExport,
 } from '../chart-spec/exportImport'
 import { assertBundleInvariant } from './bundleInvariant'
+import { loadFactoryDefaults } from '../chart-spec/factoryDefaults'
 import { migrateChartSpec } from '../chart-spec/schema'
 import type {
   BarChartSpec,
@@ -27,9 +29,11 @@ import type {
   DataNode,
   EditorChartId,
   HeatmapChartSpec,
+  PersistedEditorChartId,
   TabularPatternId,
   TreePatternId,
 } from '../chart-spec/types'
+import { isPersistedEditorChartId } from '../chart-spec/types'
 import { deriveVariant, isBarChartSpec } from '../chart-spec/types'
 import { generateTreeData, randomizeSeed } from '../data/generate'
 import {
@@ -58,6 +62,7 @@ export const VARIANT_LABELS: Record<ChartVariant, string> = {
 export const CHART_LABELS: Record<EditorChartId, string> = {
   ...VARIANT_LABELS,
   heatmap: 'Heatmap',
+  palette: 'Palette',
 }
 const THEME_STORAGE_KEY = 'euclid-ui-theme'
 const SHELL_STORAGE_KEY = 'euclid-shell-layout'
@@ -131,6 +136,8 @@ type UiState = {
   treeAnimLayoutCollapsed: string[]
   treeLayoutFromHeight: number
   previewShowAllCharts: boolean
+  /** Last chart before entering UI-only palette view (for spec sync + export). */
+  paletteReturnChart: PersistedEditorChartId
   /** Inspector OKLCH wheel intersects the colors tab scrollport. */
   paletteWheelInView: boolean
   treeUiByVariant: Partial<
@@ -213,6 +220,7 @@ function createDefaultSpecsBundle(seed: BarChartSpec): Record<ChartVariant, BarC
 function afterBarDataRefresh(state: {
   spec: ChartSpec
   specsByVariant: Record<ChartVariant, BarChartSpec>
+  heatmapSpec: HeatmapChartSpec
   selectedChart: EditorChartId
   ui: UiState
 }) {
@@ -227,6 +235,7 @@ function afterBarDataRefresh(state: {
 
 function afterHeatmapDataRefresh(state: {
   spec: ChartSpec
+  specsByVariant: Record<ChartVariant, BarChartSpec>
   heatmapSpec: HeatmapChartSpec
   selectedChart: EditorChartId
   ui: UiState
@@ -240,7 +249,7 @@ type AutosaveBundleV3 = {
   version: 3
   specsByVariant: Record<ChartVariant, BarChartSpec>
   heatmapSpec: HeatmapChartSpec
-  selectedChart: EditorChartId
+  selectedChart: PersistedEditorChartId
 }
 
 type AutosaveBundleV2 = {
@@ -262,7 +271,7 @@ function loadAutosaveBundle(): AutosaveBundleV3 | null {
       }
       const heatmapSpec = migrateChartSpec(bag.heatmapSpec) as HeatmapChartSpec
       const selectedChart = bag.selectedChart
-      if (selectedChart !== 'heatmap' && !ALL_VARIANTS.includes(selectedChart)) return null
+      if (!isPersistedEditorChartId(selectedChart)) return null
       return { version: 3, specsByVariant, heatmapSpec, selectedChart }
     }
     if (
@@ -315,17 +324,27 @@ function migrateBundleSpec(raw: unknown): ChartSpec {
   return normalizeTreeMaxDepth(migrateChartSpec(raw))
 }
 
+function persistedChartSelection(state: {
+  selectedChart: EditorChartId
+  ui: UiState
+}): PersistedEditorChartId {
+  return state.selectedChart === 'palette'
+    ? state.ui.paletteReturnChart
+    : state.selectedChart
+}
+
 function persistActiveSpecSlot(state: {
   spec: ChartSpec
   specsByVariant: Record<ChartVariant, BarChartSpec>
   heatmapSpec: HeatmapChartSpec
   selectedChart: EditorChartId
+  ui: UiState
 }) {
-  if (state.selectedChart === 'heatmap') {
+  const slot = persistedChartSelection(state)
+  if (slot === 'heatmap') {
     state.heatmapSpec = state.spec as HeatmapChartSpec
   } else {
-    const variant = state.selectedChart
-    state.specsByVariant[variant] = state.spec as BarChartSpec
+    state.specsByVariant[slot] = state.spec as BarChartSpec
   }
 }
 
@@ -334,25 +353,27 @@ function syncActiveSpecSlot(state: {
   specsByVariant: Record<ChartVariant, BarChartSpec>
   heatmapSpec: HeatmapChartSpec
   selectedChart: EditorChartId
+  ui: UiState
 }) {
+  const slot = persistedChartSelection(state)
   state.spec =
-    state.selectedChart === 'heatmap'
-      ? state.heatmapSpec
-      : state.specsByVariant[state.selectedChart]
+    slot === 'heatmap' ? state.heatmapSpec : state.specsByVariant[slot]
 }
 
 function syncSharedToAllBarVariants(state: {
   spec: ChartSpec
   specsByVariant: Record<ChartVariant, BarChartSpec>
   selectedChart: EditorChartId
+  ui: UiState
 }) {
   if (!isBarChartSpec(state.spec)) return
   const shared = pickSharedChartSettings(state.spec)
   for (const v of ALL_VARIANTS) {
     applySharedChartSettings(state.specsByVariant[v], shared)
   }
-  if (state.selectedChart !== 'heatmap') {
-    state.spec = state.specsByVariant[state.selectedChart]
+  const slot = persistedChartSelection(state)
+  if (slot !== 'heatmap') {
+    state.spec = state.specsByVariant[slot]
   }
 }
 
@@ -442,13 +463,23 @@ function startTreeReveal(
   s.ui.treeAnimUseBeforeLayout = hide.length > 0
 }
 
+const factoryEditor = loadFactoryDefaults().editor
 const loadedBundle = loadAutosaveBundle()
 const initialSpecsByVariant =
   loadedBundle?.specsByVariant ?? createInitialSpecsBundle()
 const initialHeatmapSpec = loadedBundle?.heatmapSpec ?? createHeatmapSpec()
-const initialSelected = loadedBundle?.selectedChart ?? 'classic'
+const initialSelectedChart: EditorChartId = loadedBundle
+  ? loadedBundle.selectedChart
+  : factoryEditor.selectedChart
+const initialPaletteReturn: PersistedEditorChartId = loadedBundle
+  ? loadedBundle.selectedChart
+  : factoryEditor.paletteReturnChart
+const initialSpecSlot =
+  initialSelectedChart === 'palette' ? initialPaletteReturn : initialSelectedChart
 const initialSpec =
-  initialSelected === 'heatmap' ? initialHeatmapSpec : initialSpecsByVariant[initialSelected]
+  initialSpecSlot === 'heatmap'
+    ? initialHeatmapSpec
+    : initialSpecsByVariant[initialSpecSlot]
 const initialTheme = loadTheme()
 const initialShell = loadShellLayout()
 applyDocumentTheme(initialTheme)
@@ -459,9 +490,9 @@ const useTemporalStore = create<EditorState>()(
       spec: initialSpec,
       specsByVariant: initialSpecsByVariant,
       heatmapSpec: initialHeatmapSpec,
-      selectedChart: initialSelected,
+      selectedChart: initialSelectedChart,
       ui: {
-        inspectorTab: 'settings',
+        inspectorTab: loadedBundle ? 'settings' : factoryEditor.inspectorTab,
         theme: initialTheme,
         inspectorWidth: initialShell.inspectorWidth,
         hoverId: null,
@@ -479,6 +510,7 @@ const useTemporalStore = create<EditorState>()(
         treeAnimLayoutCollapsed: [],
         treeLayoutFromHeight: 400,
         previewShowAllCharts: false,
+        paletteReturnChart: initialPaletteReturn,
         paletteWheelInView: true,
         treeUiByVariant: {},
       },
@@ -496,9 +528,24 @@ const useTemporalStore = create<EditorState>()(
 
       setSharedSpec: (updater) =>
         set((state) => {
+          if (state.selectedChart === 'palette') {
+            const anchor = state.specsByVariant.classic
+            updater(anchor)
+            if (!isBarChartSpec(anchor)) return
+            state.specsByVariant.classic = syncVariantField(anchor) as BarChartSpec
+            syncSharedToAllBarVariants({
+              spec: state.specsByVariant.classic,
+              specsByVariant: state.specsByVariant,
+              selectedChart: state.selectedChart,
+              ui: state.ui,
+            })
+            finishBundleMutation(state)
+            return
+          }
           syncActiveSpecSlot(state)
           updater(state.spec)
-          if (state.selectedChart === 'heatmap') {
+          const slot = persistedChartSelection(state)
+          if (slot === 'heatmap') {
             if (isBarChartSpec(state.spec)) return
             state.heatmapSpec = state.spec
           } else {
@@ -528,13 +575,30 @@ const useTemporalStore = create<EditorState>()(
       selectChart: (chart) => {
         set((state) => {
           if (state.selectedChart === chart) return
-          persistActiveSpecSlot(state)
-          if (state.selectedChart !== 'heatmap') {
-            saveTreeUiForVariant(state)
+          const leavingPalette = state.selectedChart === 'palette'
+          const enteringPalette = chart === 'palette'
+
+          if (!leavingPalette) {
+            persistActiveSpecSlot(state)
+            if (state.selectedChart !== 'heatmap') {
+              saveTreeUiForVariant(state)
+            }
           }
+
+          if (enteringPalette && !leavingPalette) {
+            if (state.selectedChart !== 'palette') {
+              state.ui.paletteReturnChart = persistedChartSelection(state)
+            }
+            state.ui.inspectorTab = 'colors'
+          }
+
           state.selectedChart = chart
-          syncActiveSpecSlot(state)
-          loadTreeUiForSpec(state, state.spec)
+
+          if (!enteringPalette) {
+            syncActiveSpecSlot(state)
+            loadTreeUiForSpec(state, state.spec)
+          }
+
           state.ui.hoverId = null
           state.ui.selectId = null
           finishBundleMutation(state)
@@ -755,7 +819,11 @@ const useTemporalStore = create<EditorState>()(
         const { selectedChart, specsByVariant, heatmapSpec, ui } = get()
         const hierarchyExpanded =
           ui.treeUiByVariant.hierarchy?.expandedNodeIds ?? []
-        return bundleForExport(selectedChart, specsByVariant, heatmapSpec, hierarchyExpanded)
+        const persisted = sanitizeSelectedChartForPersist(
+          selectedChart,
+          ui.paletteReturnChart,
+        )
+        return bundleForExport(persisted, specsByVariant, heatmapSpec, hierarchyExpanded)
       },
 
       importSpec: (json) => {

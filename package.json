@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate-factory-defaults": "vitest run src/chart-spec/updateFactoryDefaultBundle.test.ts",
+    "bake-defaults": "vitest run src/chart-spec/updateFactoryDefaultBundle.test.ts"
   },
   "dependencies": {
     "@jaames/iro": "^5.5.2",

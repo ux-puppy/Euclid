@@ -1,4 +1,12 @@
-import { colorsToGradient, normalizeGradientStops } from './gradientStops'
+import { DEFAULT_VISUALIZATION_PALETTE } from '../visualization-colors/defaults'
+import {
+  colorsToGradient,
+  hasDivergingCenterStop,
+  mergeDivergingLegsIntoSequential,
+  normalizeDivergingGradientStops,
+  normalizeGradientStops,
+  splitDivergingSequential,
+} from './gradientStops'
 import type {
   HeatmapColorBlend,
   HeatmapColorConfig,
@@ -6,7 +14,7 @@ import type {
   HeatmapInterpolation,
 } from './types'
 
-const LEGACY_SEQUENTIAL = ['#1e3a5f', '#3d7ea6', '#81c3d7', '#f6f4d2', '#f4a261', '#e76f51']
+const LEGACY_SEQUENTIAL = ['#5A83D3', '#2A2A2A', '#E87A67']
 const LEGACY_NEGATIVE = ['#1d3557', '#457b9d', '#a8dadc']
 const LEGACY_POSITIVE = ['#ffe8a3', '#f4a261', '#e63946']
 
@@ -33,6 +41,10 @@ function normalizeColorBlend(raw: unknown): HeatmapColorBlend {
 export const DEFAULT_HEATMAP_COLORS: HeatmapColorConfig = {
   mode: 'sequential',
   interpolation: { ...DEFAULT_INTERPOLATION },
+  lightMode: { lightness: 0.72, chroma: 0.12 },
+  darkMode: { lightness: 0.6, chroma: 0.09 },
+  useStopAlpha: false,
+  adaptInversion: true,
   sequential: colorsToGradient(LEGACY_SEQUENTIAL),
   divergingZero: '#f8f9fa',
   negative: colorsToGradient(LEGACY_NEGATIVE),
@@ -72,12 +84,35 @@ export function normalizeHeatmapColors(raw: Partial<HeatmapColorConfig> | undefi
     colorBlend: normalizeColorBlend(raw.interpolation?.colorBlend),
   }
 
+  const mode = raw.mode === 'diverging' ? 'diverging' : 'sequential'
+  const divergingZero = raw.divergingZero ?? base.divergingZero
+  let sequential = migrateGradient(raw.sequential, raw.sequentialStops, base.sequential)
+  let negative = migrateGradient(raw.negative, raw.negativeStops, base.negative)
+  let positive = migrateGradient(raw.positive, raw.positiveStops, base.positive)
+
+  if (mode === 'diverging') {
+    if (!hasDivergingCenterStop(sequential.stops)) {
+      sequential = mergeDivergingLegsIntoSequential(negative, positive, divergingZero)
+    } else {
+      sequential = {
+        stops: normalizeDivergingGradientStops(sequential.stops, divergingZero),
+      }
+    }
+    const legs = splitDivergingSequential(sequential, divergingZero)
+    negative = legs.negative
+    positive = legs.positive
+  }
+
   return {
-    mode: raw.mode === 'diverging' ? 'diverging' : 'sequential',
+    mode,
     interpolation,
-    sequential: migrateGradient(raw.sequential, raw.sequentialStops, base.sequential),
-    divergingZero: raw.divergingZero ?? base.divergingZero,
-    negative: migrateGradient(raw.negative, raw.negativeStops, base.negative),
-    positive: migrateGradient(raw.positive, raw.positiveStops, base.positive),
+    lightMode: { ...base.lightMode, ...raw.lightMode },
+    darkMode: { ...base.darkMode, ...raw.darkMode },
+    useStopAlpha: raw.useStopAlpha ?? base.useStopAlpha,
+    adaptInversion: raw.adaptInversion ?? base.adaptInversion,
+    sequential,
+    divergingZero,
+    negative,
+    positive,
   }
 }

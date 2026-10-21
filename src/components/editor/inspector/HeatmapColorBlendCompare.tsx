@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { blendDifferenceSmoothCurve, gradientStripCss } from '../../../heatmap-colors/blendCompare'
 import { sampleGradientStrip } from '../../../heatmap-colors/resolve'
-import type { HeatmapColorBlend, HeatmapGradient } from '../../../heatmap-colors/types'
+import { themeAdaptGradient } from '../../../heatmap-colors/themeAdapt'
+import type {
+  HeatmapColorBlend,
+  HeatmapColorConfig,
+  HeatmapGradient,
+} from '../../../heatmap-colors/types'
+import type { ChartTheme } from '../../../visualization-colors/types'
 import { controlSurface } from '../../../lib/controlSurface'
 import { cn } from '../../../lib/utils'
 import { InspectorSelect } from './InspectorSelect'
@@ -9,6 +15,8 @@ import { inspectorFieldGap } from './inspectorStyles'
 
 type HeatmapColorBlendCompareProps = {
   gradient: HeatmapGradient
+  themeConfig: HeatmapColorConfig
+  theme: ChartTheme
   colorBlend: HeatmapColorBlend
   onColorBlendChange: (blend: HeatmapColorBlend) => void
   className?: string
@@ -73,6 +81,8 @@ function PreviewStrip({ label, background }: { label: string; background: string
 
 export function HeatmapColorBlendCompare({
   gradient,
+  themeConfig,
+  theme,
   colorBlend,
   onColorBlendChange,
   className,
@@ -80,15 +90,29 @@ export function HeatmapColorBlendCompare({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
 
+  const displayGradient = useMemo(
+    () => themeAdaptGradient(gradient, themeConfig, theme),
+    [gradient, themeConfig, theme],
+  )
+
   const oklchBg = useMemo(
-    () => gradientStripCss(sampleGradientStrip(gradient, 'oklch', 64)),
-    [gradient],
+    () =>
+      gradientStripCss(
+        sampleGradientStrip(displayGradient, 'oklch', 64, themeConfig.useStopAlpha),
+      ),
+    [displayGradient, themeConfig.useStopAlpha],
   )
   const srgbBg = useMemo(
-    () => gradientStripCss(sampleGradientStrip(gradient, 'srgb', 64)),
-    [gradient],
+    () =>
+      gradientStripCss(
+        sampleGradientStrip(displayGradient, 'srgb', 64, themeConfig.useStopAlpha),
+      ),
+    [displayGradient, themeConfig.useStopAlpha],
   )
-  const diffCurve = useMemo(() => blendDifferenceSmoothCurve(gradient, 32, 64), [gradient])
+  const diffCurve = useMemo(
+    () => blendDifferenceSmoothCurve(displayGradient, 32, 64),
+    [displayGradient],
+  )
 
   useEffect(() => {
     const canvas = canvasRef.current

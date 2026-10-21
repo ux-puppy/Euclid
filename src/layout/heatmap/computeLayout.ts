@@ -1,20 +1,18 @@
-import { labelOnFill } from '../../accessibility/contrast'
+import { labelOnFillOverBackground } from '../../accessibility/contrast'
 import { resolveSurfaceForTheme } from '../../chart-spec/surfaceColors'
 import type { HeatmapChartSpec } from '../../chart-spec/types'
 import { formatLabelTemplate, formatValue } from '../../data/format'
+import { normalizeHeatmapColors } from '../../heatmap-colors/defaults'
 import {
   colorForHeatmapValue,
   domainFromValues,
   sampleHeatmapLegend,
 } from '../../heatmap-colors/resolve'
+import { applyHeatmapTheme } from '../../heatmap-colors/themeAdapt'
 import type { ChartTheme } from '../../visualization-colors/types'
 import { barStrokeForState } from '../bar/barInteractionStyle'
 import type { AxisScene, HeatmapCellScene, SceneGraph } from '../bar/types'
-import {
-  measureTextWidth,
-  wrapText,
-  yAxisLabelMaxWidth,
-} from './canvasMeasure'
+import { DEFAULT_HEATMAP_COLUMN_LABEL_BAND, DEFAULT_HEATMAP_ROW_LABEL_WIDTH } from '../../chart-spec/constants'
 
 function staggerIndex(
   row: number,
@@ -50,7 +48,10 @@ export function computeHeatmapLayout(
   const seriesCount = data.series.length
   const values = data.series.flatMap((s) => s.values)
   const domain = domainFromValues(values)
-  const heatmapColors = spec.colors.heatmap
+  const heatmapColors = applyHeatmapTheme(
+    normalizeHeatmapColors(spec.colors.heatmap),
+    theme,
+  )
 
   const cellW = Math.max(8, layout.cellWidth)
   const cellH = Math.max(8, layout.cellHeight)
@@ -59,6 +60,13 @@ export function computeHeatmapLayout(
   const columnLabelOffsetY = layout.columnLabelOffsetY ?? 0
   const rowLabelOffsetX = layout.rowLabelOffsetX ?? 0
   const rowLabelOffsetY = layout.rowLabelOffsetY ?? 0
+  const rowLabelWidth = Math.max(0, layout.rowLabelWidth ?? DEFAULT_HEATMAP_ROW_LABEL_WIDTH)
+  const columnLabelBandHeight = Math.max(
+    0,
+    layout.columnLabelBandHeight ?? DEFAULT_HEATMAP_COLUMN_LABEL_BAND,
+  )
+  /** Space between axis labels and the cell grid; matches cell gap (0 = flush). */
+  const labelGridGap = gap
 
   const gridW =
     seriesCount * cellW + Math.max(0, seriesCount - 1) * gap
@@ -67,33 +75,13 @@ export function computeHeatmapLayout(
 
   const yFontSize = axes.y.fontSize
   const xFontSize = axes.x.fontSize
-  const yFont = `${yFontSize}px ${typography.fontFamily}`
-  const xFont = `${xFontSize}px ${typography.fontFamily}`
-  const yLabelMaxW = yAxisLabelMaxWidth()
+  const yLabelBand = axes.y.show
+    ? rowLabelWidth + labelGridGap + Math.max(0, -rowLabelOffsetX)
+    : 0
 
-  let yLabelBand = 0
-  const rowLabelLines: string[][] = []
-  if (axes.y.show) {
-    for (let ri = 0; ri < categoryCount; ri++) {
-      const lines = wrapText(data.categories[ri] ?? '', yLabelMaxW, yFont)
-      rowLabelLines.push(lines)
-      const blockW = Math.max(...lines.map((l) => measureTextWidth(l, yFont)), 0)
-      yLabelBand = Math.max(yLabelBand, blockW)
-    }
-    yLabelBand += 16 + Math.max(0, -rowLabelOffsetX)
-  }
-
-  let xLabelBand = 0
-  const colLabelWidths: number[] = []
-  if (axes.x.show) {
-    for (let ci = 0; ci < seriesCount; ci++) {
-      const name = data.series[ci]?.name ?? ''
-      const w = measureTextWidth(name, xFont)
-      colLabelWidths.push(w)
-      xLabelBand = Math.max(xLabelBand, w)
-    }
-    xLabelBand += xFontSize + 20 + Math.max(0, columnLabelOffsetY)
-  }
+  const xLabelBand = axes.x.show
+    ? labelGridGap + columnLabelBandHeight + Math.max(0, columnLabelOffsetY)
+    : 0
 
   const colorLegendH =
     legend.show && legend.position === 'bottom' ? legend.fontSize + 28 : 0
@@ -127,24 +115,25 @@ export function computeHeatmapLayout(
 
   if (axes.y.show) {
     const ticks: AxisScene['ticks'] = []
+    const rowLabelBoxW = rowLabelWidth
+    const rowLabelBoxX = padding.left
     for (let ri = 0; ri < categoryCount; ri++) {
       const y = gridTop + ri * (cellH + gap) + cellH / 2
-      const lines = rowLabelLines[ri] ?? ['']
-      const lx = padding.left + yLabelBand - 10 + rowLabelOffsetX
+      const boxY = y - cellH / 2
+      const lx = rowLabelBoxX + rowLabelBoxW + rowLabelOffsetX
       const ly = y + rowLabelOffsetY
       ticks.push({
         x1: lx,
         y1: ly,
         x2: lx,
         y2: ly,
-        label: lines.join(' '),
-        labelLines: lines,
-        lineHeight: yFontSize * 1.25,
+        label: data.categories[ri] ?? '',
         fontSize: yFontSize,
         fontFamily: typography.fontFamily,
         lx,
         ly,
         textAlign: 'right',
+        labelBox: { x: rowLabelBoxX, y: boxY, w: rowLabelBoxW, h: cellH },
       })
     }
     scene.axes.push({ kind: 'axis', orientation: 'vertical', ticks })
@@ -152,12 +141,14 @@ export function computeHeatmapLayout(
 
   if (axes.x.show) {
     const ticks: AxisScene['ticks'] = []
-    const labelAnchorY = gridTop + gridH + 8 + columnLabelOffsetY
+    const bandTop = gridTop + gridH + labelGridGap
+    const colLabelBoxH = columnLabelBandHeight
     for (let ci = 0; ci < seriesCount; ci++) {
-      const x = gridLeft + ci * (cellW + gap) + cellW / 2
+      const cellLeft = gridLeft + ci * (cellW + gap)
+      const x = cellLeft + cellW / 2
       const name = data.series[ci]?.name ?? ''
       const lx = x + columnLabelOffsetX
-      const ly = labelAnchorY
+      const ly = bandTop + columnLabelOffsetY
       ticks.push({
         x1: lx,
         y1: ly,
@@ -166,10 +157,16 @@ export function computeHeatmapLayout(
         label: name,
         lx,
         ly,
-        textAlign: 'right',
-        labelRotation: -Math.PI / 2,
+        textAlign: 'left',
+        labelRotation: Math.PI / 2,
         fontSize: xFontSize,
         fontFamily: typography.fontFamily,
+        labelBox: {
+          x: cellLeft + columnLabelOffsetX,
+          y: bandTop + columnLabelOffsetY,
+          w: cellW,
+          h: colLabelBoxH,
+        },
       })
     }
     scene.axes.push({ kind: 'axis', orientation: 'horizontal', ticks })
@@ -218,7 +215,7 @@ export function computeHeatmapLayout(
               labels.valueFormat,
             )
           : '',
-        labelColor: labelOnFill(fill),
+        labelColor: labelOnFillOverBackground(fill, surface.background),
         state,
         progress: cellProgress,
       }

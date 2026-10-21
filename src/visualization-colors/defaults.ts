@@ -10,14 +10,10 @@ const DEFAULT_ACCESSIBILITY = {
   minRatioOnBarText: 4.5,
 } as const
 import { migrateBaseCorrection } from './baseCorrection'
-import { hueFromHex } from './oklch'
-
-/** Legacy default series[0] hue seed. */
-const LEGACY_SERIES0 = '#b8a9e8'
 
 export const DEFAULT_EXCESS_COLOR_HANDLING: ExcessColorHandling = {
-  enabled: true,
-  activateAfter: 12,
+  enabled: false,
+  activateAfter: 10,
   mode: 'repeatWithShift',
   shiftDegrees: 15,
   step: 0.08,
@@ -60,21 +56,21 @@ export function resolveExcessColorHandling(
 }
 
 export const DEFAULT_VISUALIZATION_PALETTE: VisualizationPaletteConfig = {
-  startHue: hueFromHex(LEGACY_SERIES0) ?? 285,
+  startHue: 205,
   base: { lightnessCorrection: 1, chromaCorrection: 1 },
-  lightMode: { lightness: 0.58, chroma: 0.14 },
-  darkMode: { lightness: 0.72, chroma: 0.12 },
+  lightMode: { lightness: 0.85, chroma: 0.07 },
+  darkMode: { lightness: 0.44, chroma: 0.06 },
   distanceWeights: { lightness: 1, chroma: 1, hue: 1 },
   hueLayout: 'even',
   paletteRevision: 2,
   variation: {
     property: 'lightness',
-    step: 0.08,
+    step: 0.02,
     direction: 'lighter',
-    opacityStep: 0,
+    opacityStep: 0.35,
     opacityDirection: 'decrease',
   },
-  maxBaseColors: 12,
+  maxBaseColors: 10,
   excessColorHandling: { ...DEFAULT_EXCESS_COLOR_HANDLING },
   hierarchyMode: 'globalDepth',
   assignments: {},

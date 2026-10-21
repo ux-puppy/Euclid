@@ -4,7 +4,9 @@ import {
   domainFromValues,
   sampleHeatmapLegend,
 } from '../../heatmap-colors/resolve'
+import { applyHeatmapTheme } from '../../heatmap-colors/themeAdapt'
 import type { BarChartSpec, DataNode } from '../../chart-spec/types'
+import type { ChartTheme } from '../../visualization-colors/types'
 import { isBarValueColorEncoding } from '../../chart-spec/types'
 import { resolveCartesianTabularData } from '../../data/unifiedData'
 import { formatValue } from '../../data/format'
@@ -26,8 +28,16 @@ function collectBarValues(spec: BarChartSpec): number[] {
   return out
 }
 
-export function barFillForValue(spec: BarChartSpec, value: number): string {
-  const config = normalizeHeatmapColors(spec.colors.heatmap)
+function themedHeatmapConfig(spec: BarChartSpec, theme: ChartTheme) {
+  return applyHeatmapTheme(normalizeHeatmapColors(spec.colors.heatmap), theme)
+}
+
+export function barFillForValue(
+  spec: BarChartSpec,
+  value: number,
+  theme: ChartTheme,
+): string {
+  const config = themedHeatmapConfig(spec, theme)
   const domain = domainFromValues(collectBarValues(spec))
   return colorForHeatmapValue(value, domain, config)
 }
@@ -35,13 +45,14 @@ export function barFillForValue(spec: BarChartSpec, value: number): string {
 export function attachBarValueColorLegend(
   scene: SceneGraph,
   spec: BarChartSpec,
+  theme: ChartTheme,
   legendX: number,
   legendY: number,
   legendW: number,
 ): void {
   if (!isBarValueColorEncoding(spec.colors) || !spec.legend.show) return
 
-  const config = normalizeHeatmapColors(spec.colors.heatmap)
+  const config = themedHeatmapConfig(spec, theme)
   const domain = domainFromValues(collectBarValues(spec))
   const samples = sampleHeatmapLegend(config, domain, 48)
   const minLabel = formatValue(domain.min, spec.labels.valueFormat)

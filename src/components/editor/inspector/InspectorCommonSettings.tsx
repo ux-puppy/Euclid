@@ -42,7 +42,7 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
     cartLayout != null &&
     cartLayout.barLayout === 'grouped' &&
     tabularSeries > 1 &&
-    activeSpec.variant === 'classic'
+    activeSpec.variant !== 'classic'
   const showStackGap =
     cartLayout != null && cartLayout.barLayout === 'stacked' && tabularSeries > 1
 
@@ -589,6 +589,18 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
           />
           <InspectorReveal show={spec.axes.x.show}>
             <SliderControl
+              label="Column label band height"
+              value={heatmapLayout?.columnLabelBandHeight ?? 72}
+              min={24}
+              max={160}
+              step={1}
+              onChange={(v) =>
+                setSpec((s) => {
+                  if (isHeatmapChartSpec(s)) s.layout.columnLabelBandHeight = v
+                })
+              }
+            />
+            <SliderControl
               label="Column label X"
               value={heatmapLayout?.columnLabelOffsetX ?? 0}
               min={-80}
@@ -615,6 +627,18 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
           </InspectorReveal>
           <InspectorReveal show={spec.axes.y.show}>
             <SliderControl
+              label="Row label width"
+              value={heatmapLayout?.rowLabelWidth ?? 108}
+              min={48}
+              max={240}
+              step={1}
+              onChange={(v) =>
+                setSpec((s) => {
+                  if (isHeatmapChartSpec(s)) s.layout.rowLabelWidth = v
+                })
+              }
+            />
+            <SliderControl
               label="Row label X"
               value={heatmapLayout?.rowLabelOffsetX ?? 0}
               min={-80}
@@ -639,6 +663,20 @@ export function InspectorCommonSettings({ activeSpec }: InspectorCommonSettingsP
               }
             />
           </InspectorReveal>
+          <InspectorSelect
+            label="Label overflow"
+            value={spec.labels.labelOverflow}
+            options={[
+              { value: 'fade', label: 'Fade' },
+              { value: 'clip', label: 'Clip' },
+              { value: 'overflow', label: 'Overflow' },
+            ]}
+            onChange={(v) =>
+              setSharedSpec((s) => {
+                s.labels.labelOverflow = v as 'fade' | 'clip' | 'overflow'
+              })
+            }
+          />
           <SwitchRow
             label="Color scale"
             checked={spec.legend.show}

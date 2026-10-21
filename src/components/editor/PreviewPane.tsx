@@ -2,16 +2,22 @@ import { MagnifyingGlassMinus, MagnifyingGlassPlus, Play } from '@phosphor-icons
 import { useRef } from 'react'
 import { ChartCanvas, type ChartCanvasHandle } from './ChartCanvas'
 import { FloatingPaletteWheel } from './FloatingPaletteWheel'
+import { PalettePane } from './PalettePane'
 import {
   useEditorStore,
   CHART_LABELS,
 } from '../../store/editorStore'
-import type { EditorChartId } from '../../chart-spec/types'
+import type { ChartVariant } from '../../chart-spec/types'
 import { Button } from '../ui/button'
 import { SwitchRow } from './inspector/SwitchRow'
 import { cn } from '../../lib/utils'
 import { EDITOR_PANEL_SHELL_BG, EDITOR_PANEL_SHELL_RADIUS } from './editorShellChrome'
-const PREVIEW_CHARTS: EditorChartId[] = ['classic', 'breakdown', 'hierarchy', 'heatmap']
+const PREVIEW_CHARTS: (ChartVariant | 'heatmap')[] = [
+  'classic',
+  'breakdown',
+  'hierarchy',
+  'heatmap',
+]
 
 const PREVIEW_GALLERY_CARD_RADIUS_PX = 10
 
@@ -44,6 +50,7 @@ export function PreviewPane() {
     spec.data.shape === 'tree'
 
   const zoomPct = Math.round(targetZoom * 100)
+  const isPaletteView = selectedChart === 'palette'
 
   return (
     <div
@@ -54,61 +61,69 @@ export function PreviewPane() {
       )}
     >
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border shrink-0 min-h-[42px] flex-wrap">
-        <span className="text-sm text-muted-foreground font-medium">Chart Preview Space</span>
-        <div className="flex items-center min-w-[200px]">
-          <SwitchRow
-            label="Show all charts"
-            checked={showAllCharts}
-            onCheckedChange={setPreviewShowAllCharts}
-          />
-        </div>
-        <div className="ml-auto flex items-center gap-1 flex-wrap justify-end">
-          <span className="text-xs font-mono text-muted-foreground w-10 text-center tabular-nums">
-            {zoomPct}%
-          </span>
-          <Button size="iconSm" variant="ghost" onClick={zoomOut} title="Zoom out">
-            <MagnifyingGlassMinus size={14} />
-          </Button>
-          <Button size="iconSm" variant="ghost" onClick={zoomIn} title="Zoom in">
-            <MagnifyingGlassPlus size={14} />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => zoomToFit(canvasRef.current?.getFitZoom() ?? 1)}
-          >
-            Fit
-          </Button>
-          <Button size="sm" variant="ghost" onClick={zoomTo100}>
-            100%
-          </Button>
-          <Button
-            size="iconSm"
-            variant="ghost"
-            onClick={() =>
-              spec.variant === 'hierarchy'
-                ? withTreeLayoutAnim(replayAnimation)
-                : replayAnimation()
-            }
-            title="Replay animation"
-          >
-            <Play size={14} />
-          </Button>
-          {showExpand && (
-            <>
-              <Button size="sm" variant="outline" onClick={() => withTreeLayoutAnim(expandAll)}>
-                Expand all
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => withTreeLayoutAnim(collapseAll)}>
-                Collapse all
-              </Button>
-            </>
-          )}
-        </div>
+        <span className="text-sm text-muted-foreground font-medium">
+          {isPaletteView ? 'Palette' : 'Chart Preview Space'}
+        </span>
+        {!isPaletteView && (
+          <div className="flex items-center min-w-[200px]">
+            <SwitchRow
+              label="Show all charts"
+              checked={showAllCharts}
+              onCheckedChange={setPreviewShowAllCharts}
+            />
+          </div>
+        )}
+        {!isPaletteView && (
+          <div className="ml-auto flex items-center gap-1 flex-wrap justify-end">
+            <span className="text-xs font-mono text-muted-foreground w-10 text-center tabular-nums">
+              {zoomPct}%
+            </span>
+            <Button size="iconSm" variant="ghost" onClick={zoomOut} title="Zoom out">
+              <MagnifyingGlassMinus size={14} />
+            </Button>
+            <Button size="iconSm" variant="ghost" onClick={zoomIn} title="Zoom in">
+              <MagnifyingGlassPlus size={14} />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => zoomToFit(canvasRef.current?.getFitZoom() ?? 1)}
+            >
+              Fit
+            </Button>
+            <Button size="sm" variant="ghost" onClick={zoomTo100}>
+              100%
+            </Button>
+            <Button
+              size="iconSm"
+              variant="ghost"
+              onClick={() =>
+                spec.variant === 'hierarchy'
+                  ? withTreeLayoutAnim(replayAnimation)
+                  : replayAnimation()
+              }
+              title="Replay animation"
+            >
+              <Play size={14} />
+            </Button>
+            {showExpand && (
+              <>
+                <Button size="sm" variant="outline" onClick={() => withTreeLayoutAnim(expandAll)}>
+                  Expand all
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => withTreeLayoutAnim(collapseAll)}>
+                  Collapse all
+                </Button>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="relative flex flex-1 min-h-0 min-w-0 flex-col">
-      {showAllCharts ? (
+      {isPaletteView ? (
+        <PalettePane />
+      ) : showAllCharts ? (
         <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-hidden p-3 box-border">
             {PREVIEW_CHARTS.map((chartId) => {
               const chartSpec =

@@ -20,8 +20,8 @@ describe('valueBarColors stacked', () => {
     const fills = new Set(scene.barRows.map((r) => r.fill))
     expect(fills.size).toBeGreaterThan(1)
 
-    const low = barFillForValue(spec, 5)
-    const high = barFillForValue(spec, 95)
+    const low = barFillForValue(spec, 5, 'dark')
+    const high = barFillForValue(spec, 95, 'dark')
     expect(low).not.toBe(high)
   })
 })

@@ -1,4 +1,4 @@
-import { converter } from 'culori'
+import { converter, formatHex } from 'culori'
 
 const toRgb = converter('rgb')
 
@@ -38,4 +38,18 @@ export function labelOnFill(fill: string): string {
   const l = relativeLuminance(fill)
   if (l == null) return '#000'
   return l > 0.45 ? '#000' : '#fff'
+}
+
+/** Label color from fill composited over an opaque background (sRGB alpha-over). */
+export function labelOnFillOverBackground(fill: string, background: string): string {
+  const fg = toRgb(fill)
+  const bg = toRgb(background)
+  if (!fg || !bg || fg.r == null || bg.r == null) return labelOnFill(fill)
+  const a = fg.alpha ?? 1
+  if (a >= 0.999) return labelOnFill(fill)
+  const r = (fg.r ?? 0) * a + (bg.r ?? 0) * (1 - a)
+  const g = (fg.g ?? 0) * a + (bg.g ?? 0) * (1 - a)
+  const b = (fg.b ?? 0) * a + (bg.b ?? 0) * (1 - a)
+  const flat = formatHex({ mode: 'rgb', r, g, b })
+  return labelOnFill(flat ?? fill)
 }

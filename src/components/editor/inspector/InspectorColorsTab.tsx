@@ -34,15 +34,23 @@ const BAR_ENCODING_OPTIONS = [
 
 export function InspectorColorsTab() {
   const spec = useEditorStore((s) => s.spec)
+  const specsByVariant = useEditorStore((s) => s.specsByVariant)
+  const selectedChart = useEditorStore((s) => s.selectedChart)
   const setSharedSpec = useEditorStore((s) => s.setSharedSpec)
   const setSpec = useEditorStore((s) => s.setSpec)
   const theme = useEditorStore((s) => s.ui.theme)
 
-  const surface = resolveSurfaceForTheme(spec.colors, theme)
+  const isPaletteView = selectedChart === 'palette'
+  const barSpec = isPaletteView ? specsByVariant.classic : spec
+  const showBarColors = isPaletteView || isBarChartSpec(spec)
+  const colorsForSurface = isPaletteView
+    ? specsByVariant.classic.colors
+    : spec.colors
+  const surface = resolveSurfaceForTheme(colorsForSurface, theme)
 
   return (
     <div className={inspectorTabRoot}>
-      {isBarChartSpec(spec) && (
+      {showBarColors && isBarChartSpec(barSpec) && (
         <>
           <div
             className={cn(
@@ -57,7 +65,7 @@ export function InspectorColorsTab() {
               fullWidth
               compact
               options={BAR_ENCODING_OPTIONS}
-              value={spec.colors.encoding ?? 'categorical'}
+              value={barSpec.colors.encoding ?? 'categorical'}
               onChange={(encoding: BarColorEncoding) =>
                 setSharedSpec((s) => {
                   if (!isBarChartSpec(s)) return
@@ -66,11 +74,11 @@ export function InspectorColorsTab() {
               }
             />
           </div>
-          {(spec.colors.encoding ?? 'categorical') === 'categorical' ? (
+          {(barSpec.colors.encoding ?? 'categorical') === 'categorical' ? (
             <VisualizationPaletteControl
-              spec={spec}
+              spec={barSpec}
               theme={theme}
-              config={spec.colors.visualization}
+              config={barSpec.colors.visualization}
               onChange={(patch) =>
                 setSharedSpec((s) => {
                   if (!isBarChartSpec(s)) return
@@ -81,7 +89,8 @@ export function InspectorColorsTab() {
           ) : (
             <HeatmapColorsControl
               sectionTitle="Value scale"
-              config={spec.colors.heatmap}
+              theme={theme}
+              config={barSpec.colors.heatmap}
               onChange={(patch) =>
                 setSharedSpec((s) => {
                   if (!isBarChartSpec(s)) return
@@ -92,8 +101,9 @@ export function InspectorColorsTab() {
           )}
         </>
       )}
-      {isHeatmapChartSpec(spec) && (
+      {!isPaletteView && isHeatmapChartSpec(spec) && (
         <HeatmapColorsControl
+          theme={theme}
           config={spec.colors.heatmap}
           onChange={(patch) =>
             setSpec((s) => {

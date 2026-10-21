@@ -11,7 +11,7 @@ import { useEditorStore } from '../../store/editorStore'
 import type { EditorChartId } from '../../chart-spec/types'
 import { CHART_LABELS } from '../../store/editorStore'
 
-const charts: EditorChartId[] = ['classic', 'breakdown', 'hierarchy', 'heatmap']
+const charts: EditorChartId[] = ['palette', 'classic', 'breakdown', 'hierarchy', 'heatmap']
 
 const NAV_WIDTH_PX = 177
 

@@ -1,6 +1,13 @@
 import { migrateChartSpec } from './schema'
-import type { BarChartSpec, ChartSpec, ChartVariant, EditorChartId, HeatmapChartSpec } from './types'
-import { isBarChartSpec } from './types'
+import type {
+  BarChartSpec,
+  ChartSpec,
+  ChartVariant,
+  EditorChartId,
+  HeatmapChartSpec,
+  PersistedEditorChartId,
+} from './types'
+import { isBarChartSpec, isPersistedEditorChartId } from './types'
 
 export function specForExport(spec: ChartSpec, expandedNodeIds: string[]): ChartSpec {
   const copy = structuredClone(spec)
@@ -18,9 +25,19 @@ export type SpecsBundleExportV2 = {
 
 export type SpecsBundleExportV3 = {
   version: 3
-  selectedChart: EditorChartId
+  selectedChart: PersistedEditorChartId
   specsByVariant: Record<ChartVariant, BarChartSpec>
   heatmapSpec: HeatmapChartSpec
+}
+
+export function sanitizeSelectedChartForPersist(
+  selected: EditorChartId,
+  paletteReturnChart: PersistedEditorChartId,
+): PersistedEditorChartId {
+  if (selected !== 'palette') {
+    return isPersistedEditorChartId(selected) ? selected : 'classic'
+  }
+  return paletteReturnChart
 }
 
 const BUNDLE_VARIANTS: ChartVariant[] = ['classic', 'breakdown', 'hierarchy']
@@ -45,14 +62,14 @@ export function isSpecsBundleExportV3(raw: unknown): raw is SpecsBundleExportV3 
 }
 
 export function bundleForExport(
-  selectedChart: EditorChartId,
+  selectedChart: PersistedEditorChartId,
   specsByVariant: Record<ChartVariant, BarChartSpec>,
   heatmapSpec: HeatmapChartSpec,
   hierarchyExpandedIds: string[],
 ): SpecsBundleExportV3 {
   return {
     version: 3,
-    selectedChart,
+    selectedChart: isPersistedEditorChartId(selectedChart) ? selectedChart : 'classic',
     specsByVariant: {
       classic: specForExport(specsByVariant.classic, []) as BarChartSpec,
       breakdown: specForExport(specsByVariant.breakdown, []) as BarChartSpec,
@@ -74,7 +91,7 @@ export function parseImportedPayload(text: string): ParsedImport {
       kind: 'bundle-v3',
       bundle: {
         version: 3,
-        selectedChart: raw.selectedChart,
+        selectedChart: isPersistedEditorChartId(raw.selectedChart) ? raw.selectedChart : 'classic',
         specsByVariant: {
           classic: migrateChartSpec(raw.specsByVariant.classic) as BarChartSpec,
           breakdown: migrateChartSpec(raw.specsByVariant.breakdown) as BarChartSpec,

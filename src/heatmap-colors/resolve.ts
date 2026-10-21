@@ -1,9 +1,10 @@
 import { converter, formatHex } from 'culori'
 import { oklchFromHex, oklchToHex } from '../visualization-colors/oklch'
+import { attachAlpha, heatmapColorForOutput, lerpAlpha } from './colorAlpha'
 
 const toRgb = converter('rgb')
 import { mapScaleT } from './interpolation'
-import { normalizeGradientStops, sortStops } from './gradientStops'
+import { DIVERGING_CENTER, normalizeGradientStops, sortStops } from './gradientStops'
 import type {
   HeatmapColorBlend,
   HeatmapColorConfig,
@@ -26,11 +27,12 @@ function lerpColorOklch(a: string, b: string, f: number): string {
   const okA = oklchFromHex(a)
   const okB = oklchFromHex(b)
   if (!okA || !okB) return f < 0.5 ? a : b
-  return oklchToHex(
+  const opaque = oklchToHex(
     lerp(okA.l, okB.l, f),
     lerp(okA.c, okB.c, f),
     lerpHue(okA.h, okB.h, f),
   )
+  return attachAlpha(opaque, lerpAlpha(a, b, f))
 }
 
 function lerpColorSrgb(a: string, b: string, f: number): string {
@@ -43,7 +45,8 @@ function lerpColorSrgb(a: string, b: string, f: number): string {
     g: lerp(ra.g ?? 0, rb.g ?? 0, f),
     b: lerp(ra.b ?? 0, rb.b ?? 0, f),
   }
-  return formatHex(mixed) ?? (f < 0.5 ? a : b)
+  const opaque = formatHex(mixed) ?? (f < 0.5 ? a : b)
+  return attachAlpha(opaque, lerpAlpha(a, b, f))
 }
 
 function lerpStopColors(a: string, b: string, f: number, colorBlend: HeatmapColorBlend): string {
@@ -54,13 +57,19 @@ export function sampleGradientAt(
   gradient: HeatmapGradient,
   t: number,
   colorBlend: HeatmapColorBlend,
+  useStopAlpha = true,
 ): string {
   const stops = sortStops(normalizeGradientStops(gradient.stops))
+  const finish = (color: string) =>
+    useStopAlpha ? color : heatmapColorForOutput(color, { useStopAlpha: false })
+
   if (stops.length === 0) return '#888888'
   const clamped = Math.max(0, Math.min(1, t))
 
-  if (clamped <= stops[0]!.position) return stops[0]!.color
-  if (clamped >= stops[stops.length - 1]!.position) return stops[stops.length - 1]!.color
+  if (clamped <= stops[0]!.position) return finish(stops[0]!.color)
+  if (clamped >= stops[stops.length - 1]!.position) {
+    return finish(stops[stops.length - 1]!.color)
+  }
 
   for (let i = 0; i < stops.length - 1; i++) {
     const a = stops[i]!
@@ -68,10 +77,10 @@ export function sampleGradientAt(
     if (clamped >= a.position && clamped <= b.position) {
       const span = b.position - a.position
       const f = span <= 0 ? 0 : (clamped - a.position) / span
-      return lerpStopColors(a.color, b.color, f, colorBlend)
+      return finish(lerpStopColors(a.color, b.color, f, colorBlend))
     }
   }
-  return stops[stops.length - 1]!.color
+  return finish(stops[stops.length - 1]!.color)
 }
 
 /** Colors along gradient parameter 0…1 (for bar preview). */
@@ -79,11 +88,12 @@ export function sampleGradientStrip(
   gradient: HeatmapGradient,
   colorBlend: HeatmapColorBlend,
   steps = 48,
+  useStopAlpha = true,
 ): string[] {
   const out: string[] = []
   for (let i = 0; i < steps; i++) {
     const t = steps <= 1 ? 0.5 : i / (steps - 1)
-    out.push(sampleGradientAt(gradient, t, colorBlend))
+    out.push(sampleGradientAt(gradient, t, colorBlend, useStopAlpha))
   }
   return out
 }
@@ -112,30 +122,31 @@ export function colorForHeatmapValue(
   config: HeatmapColorConfig,
 ): string {
   const { interpolation } = config
+  const useStopAlpha = config.useStopAlpha
 
   if (config.mode === 'sequential') {
     const tLinear = linearT(value, domain.min, domain.max)
     const t = mapScaleT(tLinear, interpolation)
-    return sampleGradientAt(config.sequential, t, interpolation.colorBlend)
+    return sampleGradientAt(config.sequential, t, interpolation.colorBlend, useStopAlpha)
   }
 
   if (value === 0 || (Math.abs(value) < 1e-12 && domain.min <= 0 && domain.max >= 0)) {
-    return config.divergingZero
+    return heatmapColorForOutput(config.divergingZero, config)
   }
 
   if (value < 0) {
     const negMin = Math.min(domain.min, 0)
-    if (negMin === 0) return config.divergingZero
+    if (negMin === 0) return heatmapColorForOutput(config.divergingZero, config)
     const tLinear = (value - negMin) / (0 - negMin)
-    const t = mapScaleT(tLinear, interpolation)
-    return sampleGradientAt(config.negative, t, interpolation.colorBlend)
+    const t = mapScaleT(tLinear, interpolation) * DIVERGING_CENTER
+    return sampleGradientAt(config.sequential, t, interpolation.colorBlend, useStopAlpha)
   }
 
   const posMax = Math.max(domain.max, 0)
-  if (posMax === 0) return config.divergingZero
+  if (posMax === 0) return heatmapColorForOutput(config.divergingZero, config)
   const tLinear = value / posMax
-  const t = mapScaleT(tLinear, interpolation)
-  return sampleGradientAt(config.positive, t, interpolation.colorBlend)
+  const t = DIVERGING_CENTER + mapScaleT(tLinear, interpolation) * DIVERGING_CENTER
+  return sampleGradientAt(config.sequential, t, interpolation.colorBlend, useStopAlpha)
 }
 
 /** Sample colors along data domain for legend rendering. */

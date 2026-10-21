@@ -35,10 +35,10 @@ export function barUnifiedParams(params: UnifiedDataParams): UnifiedDataParams {
 
 export const DEFAULT_UNIFIED_DATA: UnifiedDataParams = {
   pattern: 'random',
-  seriesPattern: 'random',
+  seriesPattern: 'sparse',
   seed: 42,
-  categoryCount: 6,
-  seriesCount: 5,
+  categoryCount: 10,
+  seriesCount: 10,
   maxDepth: DEFAULT_TREE_MAX_DEPTH,
 }
 
@@ -153,17 +153,33 @@ export function resolveCartesianTabularData(spec: BarChartSpec): TabularData {
   return data
 }
 
+/** Category-level magnitudes for grouped classic — independent of breakdown series count. */
+function classicGroupedCategoryValues(breakdown: TabularData): number[] {
+  const prov = breakdown.provenance
+  const categoryCount = breakdown.categories.length
+  if (prov && categoryCount > 0) {
+    const pattern = barSafeTabularPattern(prov.pattern as TabularPatternId)
+    const tabular = generateTabularData(
+      pattern,
+      prov.seed,
+      { categoryCount, seriesCount: 1 },
+      barSafeTabularPattern(tabularSeriesPattern(prov)),
+    )
+    return tabular.series[0]?.values ?? []
+  }
+  return breakdown.categories.map((_, ci) => breakdown.series[0]?.values[ci] ?? 0)
+}
+
 /** Classic chart: one horizontal bar per species; each bar is its own series row. */
 export function classicTabularFromBreakdown(breakdown: TabularData): TabularData {
   const prov = breakdown.provenance
   const composition = compositionGridFromBreakdown(breakdown)
+  const categoryValues = classicGroupedCategoryValues(breakdown)
   const series = breakdown.categories.map((name, ci) => {
-    const valuesAcrossSeries = breakdown.series.map((s) => s.values[ci] ?? 0)
-    const value = valuesAcrossSeries.reduce((a, b) => a + b, 0)
     return {
       id: `classic-s-${ci}`,
       name,
-      values: [value],
+      values: [categoryValues[ci] ?? 0],
     }
   })
   return {

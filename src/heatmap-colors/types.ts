@@ -1,3 +1,5 @@
+import type { OklchLc } from '../visualization-colors/types'
+
 export type HeatmapColorMode = 'sequential' | 'diverging'
 
 export type GradientStop = {
@@ -32,6 +34,17 @@ export type HeatmapInterpolation = {
 export type HeatmapColorConfig = {
   mode: HeatmapColorMode
   interpolation: HeatmapInterpolation
+  /** Rendered scale in light UI theme (stored stops are canonical at these settings). */
+  lightMode: OklchLc
+  /** OKLCH delta vs `lightMode` when rendering in dark UI theme. */
+  darkMode: OklchLc
+  /** When true, stop alpha is used in the chart; when false, stored alpha is ignored at render. */
+  useStopAlpha: boolean
+  /**
+   * When true (default), dark UI reflects stop lightness around the canonical light anchor
+   * so emphasis matches light-mode intent on a dark background.
+   */
+  adaptInversion: boolean
   sequential: HeatmapGradient
   divergingZero: string
   negative: HeatmapGradient

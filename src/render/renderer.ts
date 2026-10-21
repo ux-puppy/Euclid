@@ -4,7 +4,7 @@ import { isHeatmapChartSpec } from '../chart-spec/types'
 import type { ChartTheme } from '../visualization-colors/types'
 import type { SceneGraph } from '../layout/bar/types'
 import { drawAxisTickLabel } from './drawAxisTick'
-import { drawBarLabelInBar, drawCenteredLabelInBox } from './labelFade'
+import { drawBarLabelInBar, drawCenteredLabelInBox, drawHeatmapAxisTickLabel } from './labelFade'
 
 function roundRect(
   ctx: CanvasRenderingContext2D,
@@ -82,7 +82,11 @@ export function renderScene(
         ctx.strokeStyle = surface.axis
         ctx.stroke()
       }
-      drawAxisTickLabel(ctx, t, defaultFont, surface.axis)
+      if (skipAxisTickMarks && t.labelBox) {
+        drawHeatmapAxisTickLabel(ctx, t, defaultFont, surface.axis, labels.labelOverflow)
+      } else {
+        drawAxisTickLabel(ctx, t, defaultFont, surface.axis)
+      }
     }
   }
 

@@ -95,6 +95,8 @@ export type AxisScene = {
     labelRotation?: number
     fontSize?: number
     fontFamily?: string
+    /** Clip + fade region for heatmap axis labels (fixed layout band). */
+    labelBox?: { x: number; y: number; w: number; h: number }
   }[]
 }
 

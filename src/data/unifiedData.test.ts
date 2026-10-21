@@ -20,6 +20,15 @@ describe('unifiedData', () => {
     expect(bundle.hierarchy.data.provenance?.seed).toBe(99)
   })
 
+  it('classic grouped bar values stay stable when sample series count changes', () => {
+    const bundle = createInitialSpecsBundle()
+    applyUnifiedDataToBundle(bundle, { ...DEFAULT_UNIFIED_DATA, seriesCount: 2 })
+    const valuesAt2 = bundle.classic.data.series.map((s) => s.values[0])
+    applyUnifiedDataToBundle(bundle, { ...DEFAULT_UNIFIED_DATA, seriesCount: 8 })
+    const valuesAt8 = bundle.classic.data.series.map((s) => s.values[0])
+    expect(valuesAt8).toEqual(valuesAt2)
+  })
+
   it('classic uses one bar per species (series row); breakdown uses full series count', () => {
     const bundle = createInitialSpecsBundle()
     applyUnifiedDataToBundle(bundle, DEFAULT_UNIFIED_DATA)

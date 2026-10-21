@@ -198,6 +198,10 @@ export type HeatmapLayout = {
   rowLabelOffsetX: number
   /** Nudge row labels vertically (px). */
   rowLabelOffsetY: number
+  /** Fixed width (px) for row label column; long text fades within this band. */
+  rowLabelWidth: number
+  /** Fixed height (px) below grid for column labels; long text fades within this band. */
+  columnLabelBandHeight: number
 }
 
 export type ChartGeometry = {
@@ -279,7 +283,14 @@ export type HeatmapChartSpec = SharedChartSpecBody & {
 
 export type ChartSpec = BarChartSpec | HeatmapChartSpec
 
-export type EditorChartId = ChartVariant | 'heatmap'
+export type PersistedEditorChartId = ChartVariant | 'heatmap'
+
+/** Includes UI-only `palette` (not stored in export/autosave). */
+export type EditorChartId = PersistedEditorChartId | 'palette'
+
+export function isPersistedEditorChartId(id: string): id is PersistedEditorChartId {
+  return id === 'heatmap' || id === 'classic' || id === 'breakdown' || id === 'hierarchy'
+}
 
 export function isBarChartSpec(spec: ChartSpec): spec is BarChartSpec {
   return spec.chartType === 'bar'

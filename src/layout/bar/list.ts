@@ -123,7 +123,7 @@ export function computeListLayout(
         const barW = resolveBarWidth(id, targetW, loadP, valueAnim)
         const state =
           selectId === id ? 'selected' : hoverId === id ? 'hover' : 'default'
-        const fill = valueColors ? barFillForValue(spec, value) : viz!.colorForSeriesIndex(si)
+        const fill = valueColors ? barFillForValue(spec, value, theme) : viz!.colorForSeriesIndex(si)
 
         const rowY = y
         const barY = rowY + (rowSlot - barThickness) / 2
@@ -177,6 +177,7 @@ export function computeListLayout(
       attachBarValueColorLegend(
         scene,
         spec,
+        theme,
         layout.padding.left + (contentWidth - legendW) / 2,
         scene.height - layout.padding.bottom - spec.legend.fontSize - 14,
         legendW,
@@ -303,7 +304,7 @@ export function computeListLayout(
     const state =
       selectId === id ? 'selected' : hoverId === id ? 'hover' : 'default'
     const fill = valueColors
-      ? barFillForValue(spec, row.value)
+      ? barFillForValue(spec, row.value, theme)
       : row.color ??
         viz!.colorForTreeRow({
           depth: row.depth,
@@ -377,6 +378,7 @@ export function computeListLayout(
     attachBarValueColorLegend(
       scene,
       spec,
+      theme,
       layout.padding.left + (contentWidth - legendW) / 2,
       scene.height - layout.padding.bottom - spec.legend.fontSize - 14,
       legendW,

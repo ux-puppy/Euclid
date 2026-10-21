@@ -9,12 +9,14 @@ const MOTION_MS = 280
 
 export function FloatingPaletteWheel() {
   const inspectorTab = useEditorStore((s) => s.ui.inspectorTab)
+  const selectedChart = useEditorStore((s) => s.selectedChart)
   const paletteWheelInView = useEditorStore((s) => s.ui.paletteWheelInView)
   const spec = useEditorStore((s) => s.spec)
   const theme = useEditorStore((s) => s.ui.theme)
   const setSharedSpec = useEditorStore((s) => s.setSharedSpec)
 
   const shouldShow =
+    selectedChart !== 'palette' &&
     inspectorTab === 'colors' &&
     !paletteWheelInView &&
     isBarChartSpec(spec) &&

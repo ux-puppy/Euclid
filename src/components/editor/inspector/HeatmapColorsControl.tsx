@@ -1,6 +1,12 @@
-import type { HeatmapColorConfig, HeatmapColorMode } from '../../../heatmap-colors/types'
+import type { HeatmapColorConfig, HeatmapColorMode, HeatmapGradient } from '../../../heatmap-colors/types'
 import { normalizeHeatmapColors } from '../../../heatmap-colors/defaults'
-import { ColorTokenRow } from './ColorTokenRow'
+import {
+  isDivergingCenterStop,
+  mergeDivergingLegsIntoSequential,
+  normalizeDivergingGradientStops,
+  splitDivergingSequential,
+} from '../../../heatmap-colors/gradientStops'
+import type { ChartTheme } from '../../../visualization-colors/types'
 import { ColorsInspectorSection } from './ColorsInspectorSection'
 import { HeatmapGradientEditor } from './HeatmapGradientEditor'
 import { HeatmapColorBlendCompare } from './HeatmapColorBlendCompare'
@@ -12,12 +18,14 @@ import { SwitchRow } from './SwitchRow'
 
 type HeatmapColorsControlProps = {
   config: HeatmapColorConfig
+  theme: ChartTheme
   onChange: (patch: (prev: HeatmapColorConfig) => HeatmapColorConfig) => void
   sectionTitle?: string
 }
 
 export function HeatmapColorsControl({
   config,
+  theme,
   onChange,
   sectionTitle = 'Heatmap scale',
 }: HeatmapColorsControlProps) {
@@ -34,11 +42,49 @@ export function HeatmapColorsControl({
     })
   }
 
+  const applyDivergingGradient = (sequential: HeatmapGradient) => {
+    onChange((prev) => {
+      const n = normalizeHeatmapColors(prev)
+      const centerStop = sequential.stops.find(isDivergingCenterStop)
+      const divergingZero = centerStop?.color ?? n.divergingZero
+      const seq = {
+        stops: normalizeDivergingGradientStops(sequential.stops, divergingZero),
+      }
+      const legs = splitDivergingSequential(seq, divergingZero)
+      return {
+        ...n,
+        sequential: seq,
+        divergingZero,
+        negative: legs.negative,
+        positive: legs.positive,
+      }
+    })
+  }
+
   const setMode = (mode: HeatmapColorMode) => {
-    onChange((prev) => ({ ...normalizeHeatmapColors(prev), mode }))
+    onChange((prev) => {
+      const n = normalizeHeatmapColors(prev)
+      if (mode === 'diverging' && n.mode !== 'diverging') {
+        const sequential = mergeDivergingLegsIntoSequential(
+          n.negative,
+          n.positive,
+          n.divergingZero,
+        )
+        const legs = splitDivergingSequential(sequential, n.divergingZero)
+        return {
+          ...n,
+          mode,
+          sequential,
+          negative: legs.negative,
+          positive: legs.positive,
+        }
+      }
+      return { ...n, mode }
+    })
   }
 
   return (
+    <>
     <ColorsInspectorSection title={sectionTitle}>
       <InspectorSelect
         label="Scale type"
@@ -105,47 +151,116 @@ export function HeatmapColorsControl({
       <HeatmapScaleCurveGraph interpolation={interp} />
 
       <HeatmapColorBlendCompare
-        gradient={
-          normalized.mode === 'sequential' ? normalized.sequential : normalized.positive
-        }
+        gradient={normalized.sequential}
+        themeConfig={normalized}
+        theme={theme}
         colorBlend={interp.colorBlend}
         onColorBlendChange={(colorBlend) => patchInterp({ colorBlend })}
       />
 
-      {normalized.mode === 'sequential' ? (
-        <HeatmapGradientEditor
-          gradient={normalized.sequential}
-          colorBlend={interp.colorBlend}
-          onChange={(sequential) =>
-            onChange((prev) => ({ ...normalizeHeatmapColors(prev), sequential }))
-          }
-        />
-      ) : (
-        <>
-          <ColorTokenRow
-            variant="pill"
-            label="Zero"
-            value={normalized.divergingZero}
-            onChange={(divergingZero) =>
-              onChange((prev) => ({ ...normalizeHeatmapColors(prev), divergingZero }))
-            }
-          />
-          <HeatmapGradientEditor
-            gradient={normalized.negative}
-            colorBlend={interp.colorBlend}
-            onChange={(negative) =>
-              onChange((prev) => ({ ...normalizeHeatmapColors(prev), negative }))
-            }
-          />
-          <HeatmapGradientEditor
-            gradient={normalized.positive}
-            colorBlend={interp.colorBlend}
-            onChange={(positive) =>
-              onChange((prev) => ({ ...normalizeHeatmapColors(prev), positive }))
-            }
-          />
-        </>
-      )}
+      <SwitchRow
+        label="Apply stop transparency"
+        checked={normalized.useStopAlpha}
+        onCheckedChange={(useStopAlpha) =>
+          onChange((prev) => ({ ...normalizeHeatmapColors(prev), useStopAlpha }))
+        }
+      />
+
+      <HeatmapGradientEditor
+        gradient={normalized.sequential}
+        colorBlend={interp.colorBlend}
+        themeConfig={normalized}
+        theme={theme}
+        diverging={normalized.mode === 'diverging'}
+        onChange={(sequential) =>
+          normalized.mode === 'diverging'
+            ? applyDivergingGradient(sequential)
+            : onChange((prev) => ({ ...normalizeHeatmapColors(prev), sequential }))
+        }
+      />
     </ColorsInspectorSection>
+
+    <ColorsInspectorSection title="Theme adaptation">
+      <SwitchRow
+        label="Adapt inversion"
+        checked={normalized.adaptInversion}
+        onCheckedChange={(adaptInversion) =>
+          onChange((prev) => ({ ...normalizeHeatmapColors(prev), adaptInversion }))
+        }
+      />
+      <p className="text-[10px] text-muted-foreground leading-snug">
+        In dark UI, flip stop lightness around the light anchor so strong colors stay
+        prominent on a dark background (then apply dark brightness/chroma).
+      </p>
+    </ColorsInspectorSection>
+
+    <ColorsInspectorSection title="Light theme" disabled={theme === 'dark'}>
+      <p className="text-[10px] text-muted-foreground leading-snug">
+        Adjust brightness and chroma for the light UI (relative to default scale anchors).
+      </p>
+      <SliderControl
+        label="Light brightness"
+        value={normalized.lightMode.lightness}
+        min={0.2}
+        max={0.9}
+        step={0.01}
+        readOnly={theme === 'dark'}
+        onChange={(lightness) =>
+          onChange((prev) => ({
+            ...normalizeHeatmapColors(prev),
+            lightMode: { ...normalizeHeatmapColors(prev).lightMode, lightness },
+          }))
+        }
+      />
+      <SliderControl
+        label="Light chroma"
+        value={normalized.lightMode.chroma}
+        min={0.02}
+        max={0.28}
+        step={0.01}
+        readOnly={theme === 'dark'}
+        onChange={(chroma) =>
+          onChange((prev) => ({
+            ...normalizeHeatmapColors(prev),
+            lightMode: { ...normalizeHeatmapColors(prev).lightMode, chroma },
+          }))
+        }
+      />
+    </ColorsInspectorSection>
+
+    <ColorsInspectorSection title="Dark theme" disabled={theme === 'light'}>
+      <p className="text-[10px] text-muted-foreground leading-snug">
+        Dark UI applies an OKLCH shift from light settings. Tune dark brightness and chroma here.
+      </p>
+      <SliderControl
+        label="Dark brightness"
+        value={normalized.darkMode.lightness}
+        min={0.2}
+        max={0.9}
+        step={0.01}
+        readOnly={theme === 'light'}
+        onChange={(lightness) =>
+          onChange((prev) => ({
+            ...normalizeHeatmapColors(prev),
+            darkMode: { ...normalizeHeatmapColors(prev).darkMode, lightness },
+          }))
+        }
+      />
+      <SliderControl
+        label="Dark chroma"
+        value={normalized.darkMode.chroma}
+        min={0.02}
+        max={0.28}
+        step={0.01}
+        readOnly={theme === 'light'}
+        onChange={(chroma) =>
+          onChange((prev) => ({
+            ...normalizeHeatmapColors(prev),
+            darkMode: { ...normalizeHeatmapColors(prev).darkMode, chroma },
+          }))
+        }
+      />
+    </ColorsInspectorSection>
+  </>
   )
 }

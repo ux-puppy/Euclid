@@ -14,8 +14,16 @@ type InspectorPanelProps = {
 export function InspectorPanel({ width }: InspectorPanelProps) {
   const tab = useEditorStore((s) => s.ui.inspectorTab)
   const setInspectorTab = useEditorStore((s) => s.setInspectorTab)
+  const isPaletteView = useEditorStore((s) => s.selectedChart === 'palette')
   const theme = useEditorStore((s) => s.ui.theme)
   const setTheme = useEditorStore((s) => s.setTheme)
+
+  const inspectorOptions = isPaletteView
+    ? [{ value: 'colors' as const, label: 'Colors' }]
+    : [
+        { value: 'settings' as const, label: 'Settings' },
+        { value: 'colors' as const, label: 'Colors' },
+      ]
 
   return (
     <aside
@@ -28,11 +36,8 @@ export function InspectorPanel({ width }: InspectorPanelProps) {
     >
       <div className="flex min-h-[50px] items-center justify-between gap-2 px-3 border-b border-border shrink-0">
         <SegmentedControl
-          options={[
-            { value: 'settings', label: 'Settings' },
-            { value: 'colors', label: 'Colors' },
-          ]}
-          value={tab}
+          options={inspectorOptions}
+          value={isPaletteView ? 'colors' : tab}
           onChange={setInspectorTab}
         />
         <ThemeToggle theme={theme} onToggle={setTheme} />

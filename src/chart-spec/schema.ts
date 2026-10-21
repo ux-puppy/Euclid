@@ -16,7 +16,7 @@ import {
 
 } from '../visualization-colors/migrateFromLegacy'
 
-import { createHeatmapSpec } from './defaults'
+import { buildProgrammaticHeatmapSpec } from './defaults'
 import { darkChartSurface } from './colorPresets'
 import { normalizeHeatmapColors } from '../heatmap-colors/defaults'
 import { normalizeChartPadding } from './padding'
@@ -40,6 +40,8 @@ function normalizeHeatmapLayout(
     columnLabelOffsetY: layout.columnLabelOffsetY ?? 0,
     rowLabelOffsetX: layout.rowLabelOffsetX ?? 0,
     rowLabelOffsetY: layout.rowLabelOffsetY ?? 0,
+    rowLabelWidth: layout.rowLabelWidth ?? 108,
+    columnLabelBandHeight: layout.columnLabelBandHeight ?? 72,
   }
 }
 
@@ -575,7 +577,7 @@ function migrateV1ToV2(v1: z.infer<typeof chartSpecV1Schema>): import('./types')
 
 
 function migrateHeatmapChartSpec(raw: unknown): HeatmapChartSpec {
-  const base = createHeatmapSpec()
+  const base = buildProgrammaticHeatmapSpec()
   if (!raw || typeof raw !== 'object') return base
   const bag = raw as Record<string, unknown>
   const merged = {

@@ -2,6 +2,8 @@ import { ArrowsLeftRight, X } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import {
   addGradientStop,
+  divergingCenterStopIndex,
+  isDivergingCenterStop,
   normalizeGradientStops,
   mirrorGradient,
   removeGradientStopAt,
@@ -9,8 +11,19 @@ import {
   updateStopColor,
   updateStopPosition,
 } from '../../../heatmap-colors/gradientStops'
+import { heatmapColorForOutput } from '../../../heatmap-colors/colorAlpha'
 import { sampleGradientAt, sampleGradientStrip } from '../../../heatmap-colors/resolve'
-import type { HeatmapColorBlend, HeatmapGradient } from '../../../heatmap-colors/types'
+import {
+  canonicalHeatmapHex,
+  themeAdaptGradient,
+  transformHeatmapHex,
+} from '../../../heatmap-colors/themeAdapt'
+import type {
+  HeatmapColorBlend,
+  HeatmapColorConfig,
+  HeatmapGradient,
+} from '../../../heatmap-colors/types'
+import type { ChartTheme } from '../../../visualization-colors/types'
 import { cn } from '../../../lib/utils'
 import { IroColorPicker } from '../../ui/iro-color-picker'
 import { Button } from '../../ui/button'
@@ -18,7 +31,27 @@ import { Button } from '../../ui/button'
 type HeatmapGradientEditorProps = {
   gradient: HeatmapGradient
   colorBlend: HeatmapColorBlend
+  themeConfig: HeatmapColorConfig
+  theme: ChartTheme
   onChange: (next: HeatmapGradient) => void
+  /** Lock a stop at 50% (diverging zero); cannot move or delete. */
+  diverging?: boolean
+}
+
+function storeStopColor(
+  picked: string,
+  config: HeatmapColorConfig,
+  theme: ChartTheme,
+): string {
+  return canonicalHeatmapHex(picked, config, theme)
+}
+
+function displayStopColor(
+  stored: string,
+  config: HeatmapColorConfig,
+  theme: ChartTheme,
+): string {
+  return heatmapColorForOutput(transformHeatmapHex(stored, config, theme), config)
 }
 
 const DRAG_THRESHOLD_PX = 4
@@ -66,7 +99,10 @@ function findDraggedStopIndex(gradient: HeatmapGradient, anchor: DragState): num
 export function HeatmapGradientEditor({
   gradient,
   colorBlend,
+  themeConfig,
+  theme,
   onChange,
+  diverging = false,
 }: HeatmapGradientEditorProps) {
   const barRef = useRef<HTMLDivElement>(null)
   const gradientRef = useRef(gradient)
@@ -85,12 +121,22 @@ export function HeatmapGradientEditor({
   )
   stopCountRef.current = stops.length
 
+  const displayGradient = useMemo(
+    () => themeAdaptGradient({ stops }, themeConfig, theme),
+    [stops, themeConfig, theme],
+  )
+
   const barBackground = useMemo(() => {
-    const samples = sampleGradientStrip({ stops }, colorBlend, 64)
+    const samples = sampleGradientStrip(
+      displayGradient,
+      colorBlend,
+      64,
+      themeConfig.useStopAlpha,
+    )
     const step = 100 / Math.max(1, samples.length - 1)
     const parts = samples.map((c, i) => `${c} ${(i * step).toFixed(2)}%`)
     return `linear-gradient(to right, ${parts.join(', ')})`
-  }, [stops, colorBlend])
+  }, [displayGradient, colorBlend, themeConfig.useStopAlpha])
 
   const pickStopAtClientX = useCallback((clientX: number) => {
     const bar = barRef.current
@@ -113,9 +159,10 @@ export function HeatmapGradientEditor({
       const n = stopCountRef.current
       if (d.moved) {
         const idx = findDraggedStopIndex(gradientRef.current, d)
-        if (idx > 0 && idx < n - 1) {
+        const centerIdx = diverging ? divergingCenterStopIndex(gradientRef.current.stops) : -1
+        if (idx > 0 && idx < n - 1 && idx !== centerIdx) {
           const t = pickStopAtClientX(e.clientX)
-          const next = updateStopPosition(gradientRef.current, idx, t)
+          const next = updateStopPosition(gradientRef.current, idx, t, diverging)
           gradientRef.current = next
           d.anchorPosition = t
           d.index = findDraggedStopIndex(next, d)
@@ -141,7 +188,7 @@ export function HeatmapGradientEditor({
       window.removeEventListener('pointerup', endDrag)
       window.removeEventListener('pointercancel', endDrag)
     }
-  }, [pickStopAtClientX])
+  }, [pickStopAtClientX, diverging])
 
   const onBarPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 || dragRef.current) return
@@ -149,8 +196,8 @@ export function HeatmapGradientEditor({
     const near = stops.findIndex((s) => Math.abs(s.position - t) < 0.04)
     if (near >= 0) return
 
-    const color = sampleGradientAt({ stops }, t, colorBlend)
-    const next = addGradientStop(gradient, t, color)
+    const color = sampleGradientAt({ stops }, t, colorBlend, themeConfig.useStopAlpha)
+    const next = addGradientStop(gradient, t, color, diverging)
     gradientRef.current = next
     onChange(next)
 
@@ -218,10 +265,11 @@ export function HeatmapGradientEditor({
         <div className="relative z-[1] h-[30px] w-full shrink-0 pointer-events-none" aria-hidden />
         {stops.map((stop, i) => {
           const isEnd = i === 0 || i === stops.length - 1
+          const isCenter = diverging && isDivergingCenterStop(stop)
           const handleClass = cn(
             barHandleClass,
             'box-border',
-            isEnd ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing',
+            isEnd || isCenter ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing',
             dragIndex === i && 'ring-2 ring-ring ring-offset-1 ring-offset-transparent',
           )
 
@@ -239,19 +287,28 @@ export function HeatmapGradientEditor({
                   type="button"
                   className={handleClass}
                   title={`${Math.round(stop.position * 100)} — click for color${
-                    isEnd ? '' : ', drag to move'
-                  }`}
+                    isEnd || isCenter ? '' : ', drag to move'
+                  }${isCenter ? ' (zero)' : ''}`}
                   onPointerDown={(e) => onHandlePointerDown(i, e)}
                 />
                 {colorPickerIndex === i ? (
                   <IroColorPicker
                     key={`picker-${i}-${stop.position}`}
                     defaultOpen
-                    value={stop.color}
+                    value={displayStopColor(stop.color, themeConfig, theme)}
                     label={`Stop at ${Math.round(stop.position * 100)}`}
                     className="pointer-events-none absolute inset-0"
                     triggerClassName="pointer-events-none h-full w-full min-h-0 min-w-0 rounded-lg border-0 p-0 opacity-0"
-                    onChange={(c) => onChange(updateStopColor(gradient, i, c))}
+                    onChange={(c) =>
+                      onChange(
+                        updateStopColor(
+                          gradient,
+                          i,
+                          storeStopColor(c, themeConfig, theme),
+                          diverging,
+                        ),
+                      )
+                    }
                     onOpenChange={(open) => {
                       if (!open) setColorPickerIndex(null)
                     }}
@@ -266,26 +323,42 @@ export function HeatmapGradientEditor({
       <div className="flex w-full min-w-0 flex-col gap-2">
         {stops.map((stop, i) => {
           const isEnd = i === 0 || i === stops.length - 1
-          const canRemove = stops.length > 2 && !isEnd
+          const isCenter = diverging && isDivergingCenterStop(stop)
+          const canRemove = stops.length > 2 && !isEnd && !isCenter
           return (
             <div
               key={`row-${i}-${stop.position}`}
               className="flex w-full min-w-0 items-center justify-between gap-2"
             >
               <span className="shrink-0 text-sm font-medium tabular-nums text-foreground/60">
-                {Math.round(stop.position * 100)}
+                {isCenter ? 'Zero' : Math.round(stop.position * 100)}
               </span>
               <div className="flex shrink-0 items-center gap-2.5">
                 <IroColorPicker
                   variant="pill"
-                  value={stop.color}
+                  value={displayStopColor(stop.color, themeConfig, theme)}
                   label={`Stop at ${Math.round(stop.position * 100)}`}
-                  onChange={(c) => onChange(updateStopColor(gradient, i, c))}
+                  onChange={(c) =>
+                    onChange(
+                      updateStopColor(
+                        gradient,
+                        i,
+                        storeStopColor(c, themeConfig, theme),
+                        diverging,
+                      ),
+                    )
+                  }
                 />
                 <button
                   type="button"
                   disabled={!canRemove}
-                  title={canRemove ? 'Remove stop' : 'End stops cannot be removed'}
+                  title={
+                    canRemove
+                      ? 'Remove stop'
+                      : isCenter
+                        ? 'Zero stop cannot be removed'
+                        : 'End stops cannot be removed'
+                  }
                   onClick={() => canRemove && onChange(removeGradientStopAt(gradient, i))}
                   className={cn(
                     'flex h-[21px] w-[34px] shrink-0 items-center justify-center rounded-full border border-white/20',
