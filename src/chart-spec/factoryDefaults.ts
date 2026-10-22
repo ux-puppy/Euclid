@@ -1,5 +1,6 @@
 import { migrateChartSpec } from './schema'
 import type { BarChartSpec, ChartVariant, EditorChartId, HeatmapChartSpec } from './types'
+import { isPersistedEditorChartId } from './types'
 import type { SpecsBundleExportV3 } from './exportImport'
 import rawFactory from './factoryDefaultBundle.json'
 
@@ -76,13 +77,16 @@ export function parseFactoryDefaultFile(text: string): FactoryDefaultFile {
     (parsed as { version: number }).version === 3
   ) {
     const bundle = migrateBundle(parsed as SpecsBundleExportV3)
+    const persisted = isPersistedEditorChartId(bundle.selectedChart)
+      ? bundle.selectedChart
+      : 'classic'
     return {
       bundle,
       editor: {
-        selectedChart: 'palette',
+        selectedChart: persisted,
         theme: 'dark',
         inspectorTab: 'colors',
-        paletteReturnChart: bundle.selectedChart,
+        paletteReturnChart: persisted,
       },
     }
   }

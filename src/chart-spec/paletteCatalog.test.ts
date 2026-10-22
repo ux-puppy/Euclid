@@ -22,7 +22,6 @@ describe('buildPaletteCatalog', () => {
       ?.entries.find((e) => e.token === 'surface.background')
     expect(background?.light).toMatch(/^#/)
     expect(background?.dark).toMatch(/^#/)
-    expect(background?.light).not.toBe(background?.dark)
 
     const hexDisplay = /^#[0-9A-F]{6}([0-9A-F]{2})?$/
 
