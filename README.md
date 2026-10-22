@@ -17,3 +17,5 @@ Web-based chart design tool for configurable, developer-ready bar charts.
 - Settings / Colors inspector, light/dark UI + chart presets
 - JSON export/import with embedded data values
 - Undo/redo (Ctrl+Z / Ctrl+Y), localStorage autosave
+https://ux-puppy.github.io/Euclid/#/case-study
+https://ux-puppy.github.io/Euclid/
