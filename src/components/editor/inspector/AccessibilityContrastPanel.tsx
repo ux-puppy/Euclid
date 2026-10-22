@@ -23,6 +23,10 @@ type AccessibilityContrastPanelProps = {
   theme: ChartTheme
   config: VisualizationPaletteConfig
   onChange: (patch: (prev: VisualizationPaletteConfig) => VisualizationPaletteConfig) => void
+  /** Case study card: thresholds left, contrast monitor right (Figma). */
+  layout?: 'stack' | 'split'
+  /** Stack layout: show threshold sliders expanded by default. */
+  initialThresholdOpen?: boolean
 }
 
 function StatusBadge({
@@ -53,20 +57,40 @@ function StatusBadge({
 function MonitorRow({
   label,
   tooltip,
+  stripSwatches,
   children,
 }: {
   label: string
   tooltip?: string
+  /** Tall color pills (case-study accessibility card). */
+  stripSwatches?: boolean
   children: ReactNode
 }) {
   return (
-    <div className="grid w-full min-w-0 grid-cols-[24px_minmax(0,1fr)] items-start gap-x-2 rounded-lg bg-control py-1 pl-2 pr-1">
+    <div
+      className={cn(
+        'grid w-full min-w-0 grid-cols-[24px_minmax(0,1fr)] gap-x-2 rounded-lg bg-control py-1 pl-2 pr-1',
+        stripSwatches ? 'min-h-[95px] items-center' : 'items-start',
+      )}
+    >
       <ControlTooltip content={tooltip} side="top" align="start">
-        <span className="pt-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
+        <span
+          className={cn(
+            'text-[10px] font-bold uppercase tracking-[0.06em] text-muted-foreground',
+            stripSwatches ? 'pt-0' : 'pt-0.5',
+          )}
+        >
           {label}
         </span>
       </ControlTooltip>
-      <div className="flex min-w-0 flex-wrap justify-end gap-0.5">{children}</div>
+      <div
+        className={cn(
+          'flex min-w-0 justify-end gap-0.5',
+          stripSwatches ? 'h-[87px] flex-nowrap' : 'flex-wrap',
+        )}
+      >
+        {children}
+      </div>
     </div>
   )
 }
@@ -76,8 +100,10 @@ export function AccessibilityContrastPanel({
   theme,
   config,
   onChange,
+  layout = 'stack',
+  initialThresholdOpen = false,
 }: AccessibilityContrastPanelProps) {
-  const [thresholdOpen, setThresholdOpen] = useState(false)
+  const [thresholdOpen, setThresholdOpen] = useState(initialThresholdOpen)
   const thresholds = resolveAccessibilityThresholds(config)
   const colorCount = requiredColorCount(spec)
   const paletteSequence = useMemo(
@@ -119,17 +145,66 @@ export function AccessibilityContrastPanel({
     )
   }
 
-  return (
-    <div className={inspectorStack}>
-      <MonitorRow label="Clr." tooltip={T.accessibility.rowColors}>
-        {paletteSequence.map(({ sequence, hex }) => (
-          <ColorSequenceDot
-            key={sequence}
-            sequence={sequence}
-            hex={hex}
-            title={T.accessibility.colorDot(sequence)}
-          />
-        ))}
+  const thresholdSliders = (
+    <>
+      <SliderControl
+        appearance={layout === 'split' ? 'colors' : 'default'}
+        label={
+          layout === 'split'
+            ? 'Text on colors threshold (1:X)'
+            : 'Text on viz (1:X)'
+        }
+        tooltip={T.accessibility.textOnViz}
+        value={thresholds.minRatioOnBarText}
+        min={1}
+        max={21}
+        step={0.1}
+        onChange={(v) => patchThreshold('minRatioOnBarText', v)}
+      />
+      <SliderControl
+        appearance={layout === 'split' ? 'colors' : 'default'}
+        label={
+          layout === 'split' ? 'Colors on bg threshold (1:X)' : 'Colors on bg (1:X)'
+        }
+        tooltip={T.accessibility.colorsOnBg}
+        value={thresholds.minRatioOnBackground}
+        min={1}
+        max={21}
+        step={0.1}
+        onChange={(v) => patchThreshold('minRatioOnBackground', v)}
+      />
+    </>
+  )
+
+  const monitorRows = (
+    <>
+      <MonitorRow
+        label="Clr."
+        tooltip={T.accessibility.rowColors}
+        stripSwatches={layout === 'split'}
+      >
+        {paletteSequence.map(({ sequence, hex }) =>
+          layout === 'split' ? (
+            <ControlTooltip
+              key={sequence}
+              content={T.accessibility.colorDot(sequence)}
+              side="top"
+            >
+              <div
+                className="h-[87px] w-5 shrink-0 rounded-full border border-foreground/80"
+                style={{ background: hex }}
+                aria-label={T.accessibility.colorDot(sequence)}
+              />
+            </ControlTooltip>
+          ) : (
+            <ColorSequenceDot
+              key={sequence}
+              sequence={sequence}
+              hex={hex}
+              title={T.accessibility.colorDot(sequence)}
+            />
+          ),
+        )}
       </MonitorRow>
 
       <MonitorRow label="Text" tooltip={T.accessibility.rowText}>
@@ -155,6 +230,23 @@ export function AccessibilityContrastPanel({
           ),
         )}
       </MonitorRow>
+    </>
+  )
+
+  if (layout === 'split') {
+    return (
+      <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
+          {thresholdSliders}
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">{monitorRows}</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={inspectorStack}>
+      {monitorRows}
 
       <ControlTooltip
         content={hasFailingSlot ? T.accessibility.adjustEnabled : T.accessibility.adjustDisabled}
@@ -229,24 +321,7 @@ export function AccessibilityContrastPanel({
           className={thresholdOpen ? 'mt-2.5' : undefined}
           innerClassName={inspectorStackGap}
         >
-            <SliderControl
-              label="Text on viz (1:X)"
-              tooltip={T.accessibility.textOnViz}
-              value={thresholds.minRatioOnBarText}
-              min={1}
-              max={21}
-              step={0.1}
-              onChange={(v) => patchThreshold('minRatioOnBarText', v)}
-            />
-            <SliderControl
-              label="Colors on bg (1:X)"
-              tooltip={T.accessibility.colorsOnBg}
-              value={thresholds.minRatioOnBackground}
-              min={1}
-              max={21}
-              step={0.1}
-              onChange={(v) => patchThreshold('minRatioOnBackground', v)}
-            />
+          {thresholdSliders}
         </InspectorReveal>
       </div>
     </div>

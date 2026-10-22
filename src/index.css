@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
 @import 'tailwindcss';
 
 @theme inline {
@@ -49,7 +49,8 @@
   --euclid-segment-active-fg: rgba(255, 255, 255, 0.95);
 }
 
-:root.light {
+:root.light,
+.light {
   --euclid-background: #ebebeb;
   --euclid-foreground: rgba(0, 0, 0, 0.85);
   --euclid-muted-foreground: rgba(0, 0, 0, 0.45);
@@ -143,6 +144,13 @@ body {
   top: var(--euclid-chart-inset, 24px);
   bottom: var(--euclid-chart-inset, 24px);
   right: var(--euclid-chart-inset, 24px);
+}
+
+/* Overlay track inset from host edge (e.g. case study page). */
+.euclid-scroll-host.euclid-scroll-overlay-gutter > .euclid-scroll-overlay-track {
+  top: var(--euclid-scroll-overlay-gutter, 4px);
+  right: var(--euclid-scroll-overlay-gutter, 4px);
+  bottom: var(--euclid-scroll-overlay-gutter, 4px);
 }
 
 .euclid-scroll-overlay-track {

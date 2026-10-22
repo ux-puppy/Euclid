@@ -51,6 +51,8 @@ type HeatmapGradientEditorProps = {
   onChange: (next: HeatmapGradient) => void
   /** Lock a stop at 50% (diverging zero); cannot move or delete. */
   diverging?: boolean
+  showMirror?: boolean
+  showStopList?: boolean
 }
 
 function storeStopColor(
@@ -154,6 +156,8 @@ export function HeatmapGradientEditor({
   theme,
   onChange,
   diverging = false,
+  showMirror = true,
+  showStopList = true,
 }: HeatmapGradientEditorProps) {
   const barRef = useRef<HTMLDivElement>(null)
   const gradientRef = useRef(gradient)
@@ -314,19 +318,21 @@ export function HeatmapGradientEditor({
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-2">
-      <div className="flex w-full min-w-0 justify-end">
-        <Button
-          variant="control"
-          size="sm"
-          className="h-[30px] gap-1.5 px-2"
-          title="Mirror gradient colors (swap low and high)"
-          aria-label="Mirror gradient colors"
-          onClick={() => onChange(mirrorGradient(gradient))}
-        >
-          <ArrowsLeftRight size={14} weight="bold" aria-hidden />
-          Mirror
-        </Button>
-      </div>
+      {showMirror ? (
+        <div className="flex w-full min-w-0 justify-end">
+          <Button
+            variant="control"
+            size="sm"
+            className="h-[30px] gap-1.5 px-2"
+            title="Mirror gradient colors (swap low and high)"
+            aria-label="Mirror gradient colors"
+            onClick={() => onChange(mirrorGradient(gradient))}
+          >
+            <ArrowsLeftRight size={14} weight="bold" aria-hidden />
+            Mirror
+          </Button>
+        </div>
+      ) : null}
       <div
         ref={barRef}
         className="relative flex w-full shrink-0 items-center overflow-visible rounded-lg p-0.5"
@@ -396,6 +402,7 @@ export function HeatmapGradientEditor({
         })}
       </div>
 
+      {showStopList ? (
       <div className="flex w-full min-w-0 flex-col gap-2">
         {stopListStops.map((stop, i) => {
           const isEnd = i === 0 || i === stopListStops.length - 1
@@ -451,6 +458,7 @@ export function HeatmapGradientEditor({
           )
         })}
       </div>
+      ) : null}
     </div>
   )
 }

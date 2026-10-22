@@ -16,6 +16,7 @@ import type { ChartTheme } from '../../../visualization-colors/types'
 import { ColorSequenceDot } from './ColorSequenceDot'
 import { IRO_WHEEL_LAYOUT } from './iroWheelLayout'
 import { ControlTooltip } from '../../ui/tooltip'
+import { cn } from '../../../lib/utils'
 import { computeWheelLabels } from './paletteWheelLabels'
 
 export const DEFAULT_PALETTE_WHEEL_SIZE = 200
@@ -84,6 +85,7 @@ export function OklchPaletteWheel({
   const appliedColorsKeyRef = useRef('')
 
   const [wheelOffset, setWheelOffset] = useState({ x: 0, y: 0 })
+  const measureWheelOffsetRef = useRef<() => void>(() => {})
 
   useLayoutEffect(() => {
     if (!interactive) return
@@ -101,6 +103,7 @@ export function OklchPaletteWheel({
       setWheelOffset((prev) => (prev.x === x && prev.y === y ? prev : { x, y }))
     }
 
+    measureWheelOffsetRef.current = measure
     measure()
     const ro = new ResizeObserver(() => measure())
     ro.observe(wrap)
@@ -134,6 +137,7 @@ export function OklchPaletteWheel({
     pickerRef.current = picker
     picker.setActiveColor(0)
     appliedColorsKeyRef.current = initial.join('|')
+    requestAnimationFrame(() => measureWheelOffsetRef.current())
 
     const applyStartHueFromPicker = () => {
       const h = picker.color.hsv.h ?? configRef.current.startHue
@@ -215,19 +219,22 @@ export function OklchPaletteWheel({
   const wheel = (
     <div
       ref={wheelWrapRef}
-      className={className ?? 'relative mx-auto aspect-square w-full max-w-[200px]'}
+      className={cn(
+        'relative isolate mx-auto aspect-square w-full max-w-[200px]',
+        className,
+      )}
       style={{ maxWidth: size }}
     >
       {interactive ? (
         <div
           ref={mountRef}
-          className="iro-numbered-wheel iro-host [&_.IroColorPicker]:!bg-transparent [&_.IroHandle_circle]:opacity-0"
+          className="iro-numbered-wheel iro-host relative z-0 [&_.IroColorPicker]:!bg-transparent [&_.IroHandle_circle]:opacity-0"
         />
       ) : (
         <div ref={mountRef} className="sr-only" aria-hidden />
       )}
       {interactive && (
-        <div className="pointer-events-none absolute inset-0">
+        <div className="pointer-events-none absolute inset-0 z-10">
           {wheelLabels.map((label) => (
             <ColorSequenceDot
               key={label.sequence}
