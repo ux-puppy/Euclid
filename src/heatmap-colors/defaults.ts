@@ -1,4 +1,3 @@
-import { DEFAULT_VISUALIZATION_PALETTE } from '../visualization-colors/defaults'
 import {
   colorsToGradient,
   hasDivergingCenterStop,

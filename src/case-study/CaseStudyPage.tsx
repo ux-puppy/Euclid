@@ -201,7 +201,7 @@ export function CaseStudyPage() {
             >
               <div className="overflow-hidden rounded-xl border border-white/25">
                 <img
-                  src="/case-study/hero.png"
+                  src={`${import.meta.env.BASE_URL}case-study/hero.png`}
                   alt="Dashboard visualization preview"
                   className="block h-[330px] w-full object-cover object-top"
                 />

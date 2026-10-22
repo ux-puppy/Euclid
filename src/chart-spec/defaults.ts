@@ -11,7 +11,6 @@ import {
   DEFAULT_CHART_PADDING,
   DEFAULT_HEATMAP_COLUMN_LABEL_BAND,
   DEFAULT_HEATMAP_ROW_LABEL_WIDTH,
-  DEFAULT_TREE_MAX_DEPTH,
 } from './constants'
 export { CLASSIC_TABULAR_SERIES, DEFAULT_TREE_MAX_DEPTH } from './constants'
 import { DEFAULT_HEATMAP_COLORS } from '../heatmap-colors/defaults'

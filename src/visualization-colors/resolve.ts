@@ -75,19 +75,19 @@ export function resolveVisualizationColors(
 ): ResolvedVisualizationColors {
   const normalized = normalizePaletteConfig(config)
   const count = requiredColorCount(spec)
-  const baseColors = generateBaseColors(config, count)
+  const baseColors = generateBaseColors(normalized, count)
   const seriesByIndex = baseColors.map((b, i) =>
     applyBakedNudge(
       i,
-      hexFromBaseVisualizationColor(b, config, theme, count),
-      config,
+      hexFromBaseVisualizationColor(b, normalized, theme, count),
+      normalized,
     ),
   )
 
   const depthLevels = maxTreeDepth(spec)
   const depthByLevel: string[] = []
   for (let d = 0; d < depthLevels; d++) {
-    depthByLevel.push(depthLevelHex(d, config, theme))
+    depthByLevel.push(depthLevelHex(d, normalized, theme))
   }
 
   const tabularIds = seriesIds(spec)

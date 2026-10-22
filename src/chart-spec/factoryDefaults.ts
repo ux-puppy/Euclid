@@ -33,7 +33,7 @@ let cached: FactoryDefaultFile | null = null
 
 export function loadFactoryDefaults(): FactoryDefaultFile {
   if (cached) return cached
-  const file = rawFactory as FactoryDefaultFile
+  const file = rawFactory as unknown as FactoryDefaultFile
   cached = {
     bundle: migrateBundle(file.bundle),
     editor: { ...file.editor },

@@ -1,4 +1,4 @@
-import { themeAdaptGradient, transformHeatmapHex } from '../heatmap-colors/themeAdapt'
+import { themeAdaptGradient } from '../heatmap-colors/themeAdapt'
 import type { HeatmapColorConfig, HeatmapGradient } from '../heatmap-colors/types'
 import {
   maxTreeDepth,
@@ -6,7 +6,6 @@ import {
   resolvePaletteSequence,
   resolveVisualizationColors,
 } from '../visualization-colors/resolve'
-import type { ChartTheme } from '../visualization-colors/types'
 import type {
   BarChartSpec,
   ChartSurfaceColors,
@@ -118,14 +117,6 @@ function depthSection(hierarchy: BarChartSpec): PaletteCatalogSection | null {
   }
 
   return { id: 'depth', title: 'Hierarchy depth', entries }
-}
-
-function heatmapHexForTheme(
-  stored: string,
-  config: HeatmapColorConfig,
-  theme: ChartTheme,
-): string {
-  return colorTokenToDisplayHex(transformHeatmapHex(stored, config, theme))
 }
 
 function gradientStopEntries(
