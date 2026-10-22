@@ -1,5 +1,6 @@
 import { labelOnFill } from '../../../accessibility/contrast'
 import { cn } from '../../../lib/utils'
+import { ControlTooltip } from '../../ui/tooltip'
 
 type ColorSequenceDotProps = {
   sequence: number
@@ -28,24 +29,27 @@ export function ColorSequenceDot({
         : '0 1px 1px rgba(255,255,255,0.85), 0 0 2px rgba(255,255,255,0.5)'
       : undefined
 
+  const tip = title ?? `Color ${sequence}`
+
   return (
-    <div
-      className={cn(
-        'flex size-5 shrink-0 items-center justify-center rounded-full',
-        variant === 'wheel'
-          ? 'border-2 border-black/35 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.35)]'
-          : 'border border-foreground/80',
-        className,
-      )}
-      style={{ background: hex, ...style }}
-      title={title ?? `Color ${sequence}`}
-    >
+    <ControlTooltip content={tip} side="top">
+      <div
+        className={cn(
+          'flex size-5 shrink-0 items-center justify-center rounded-full',
+          variant === 'wheel'
+            ? 'border-2 border-black/35 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.35)]'
+            : 'border border-foreground/80',
+          className,
+        )}
+        style={{ background: hex, ...style }}
+      >
       <span
         className="font-mono text-[10px] font-medium leading-none tracking-[0.02em]"
         style={{ color: labelColor, textShadow: wheelNumberShadow }}
       >
         {sequence}
       </span>
-    </div>
+      </div>
+    </ControlTooltip>
   )
 }

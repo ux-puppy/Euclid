@@ -7,10 +7,13 @@ import {
   inspectorSectionHeaderGap,
   inspectorStackGap,
 } from './inspectorStyles'
+import { ControlTooltip } from '../../ui/tooltip'
 import { InspectorReveal } from './InspectorReveal'
 
 export type InspectorSectionProps = {
   title: string
+  /** Native tooltip on the section title. */
+  titleTooltip?: string
   headerRight?: ReactNode
   children: ReactNode
   className?: string
@@ -24,6 +27,7 @@ export type InspectorSectionProps = {
 /** Figma 185:203 / 185:238 — header band; title + headerRight left, caret right. */
 export function InspectorSection({
   title,
+  titleTooltip,
   headerRight,
   children,
   className,
@@ -81,7 +85,13 @@ export function InspectorSection({
         aria-label={open ? `Collapse ${title}` : undefined}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <h3 className={cn(titleClass, !open && 'pointer-events-none')}>{title}</h3>
+          <ControlTooltip content={titleTooltip} side="top" align="start">
+            <h3
+              className={cn(titleClass, !open && 'pointer-events-none', titleTooltip && 'pointer-events-auto')}
+            >
+              {title}
+            </h3>
+          </ControlTooltip>
           {headerRight ? (
             <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
               {headerRight}

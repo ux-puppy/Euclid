@@ -8,15 +8,17 @@ import {
 import { SegmentedControl } from '../../ui/segmented-control'
 import { cn } from '../../../lib/utils'
 import { colorsTabSurface } from '../../../lib/controlSurface'
+import { ControlTooltip } from '../../ui/tooltip'
 import { inspectorControlCaption, inspectorLabeledField } from './inspectorStyles'
 
-export type SelectOption = { value: string; label: string }
+export type SelectOption = { value: string; label: string; tooltip?: string }
 
 type InspectorSelectProps = {
   value: string
   options: SelectOption[]
   onChange: (value: string) => void
   label?: string
+  tooltip?: string
   placeholder?: string
   disabled?: boolean
   appearance?: 'default' | 'colors'
@@ -27,13 +29,14 @@ export function InspectorSelect({
   options,
   onChange,
   label,
+  tooltip,
   placeholder,
   disabled,
   appearance = 'default',
 }: InspectorSelectProps) {
   const useSegments = options.length < 3
 
-  return (
+  const field = (
     <div className={inspectorLabeledField}>
       {label ? <span className={cn('block', inspectorControlCaption)}>{label}</span> : null}
       {useSegments ? (
@@ -61,5 +64,11 @@ export function InspectorSelect({
         </Select>
       )}
     </div>
+  )
+
+  return (
+    <ControlTooltip content={tooltip} side="top" align="start">
+      {field}
+    </ControlTooltip>
   )
 }

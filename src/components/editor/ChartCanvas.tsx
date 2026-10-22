@@ -87,8 +87,18 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
   const valueAnimFromRef = useRef<Record<string, number> | null>(null)
   const dataAnimSigRef = useRef('')
 
-  const storeSpec = useEditorStore((s) => s.spec)
-  const spec = specProp ?? storeSpec
+  const storeSpecRef = useRef<ChartSpec>(specProp ?? useEditorStore.getState().spec)
+  if (specProp !== undefined) {
+    storeSpecRef.current = specProp
+  }
+  const storeChartPadding = useEditorStore((s) => s.spec.chartPadding)
+  const storeCornerRadius = useEditorStore((s) => s.spec.containerCornerRadius)
+  const chartPadding = specProp?.chartPadding ?? storeChartPadding
+  const containerCornerRadius = specProp?.containerCornerRadius ?? storeCornerRadius
+  const specData = useEditorStore((s) => s.spec.data)
+  const specVariant = useEditorStore((s) => s.spec.variant)
+  const dataForAnim = specProp?.data ?? specData
+  const variantForAnim = specProp?.variant ?? specVariant
   const ui = useEditorStore((s) => s.ui)
   const selectedChart = useEditorStore((s) => s.selectedChart)
   const usesLiveUi =
@@ -96,8 +106,8 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
     (specProp == null ||
       (specProp.chartType === 'heatmap'
         ? selectedChart === 'heatmap'
-        : specProp.variant === storeSpec.variant && storeSpec.chartType === 'bar'))
-  const expandedIds = usesLiveUi ? ui.expandedNodeIds : staticExpandedIds(spec)
+        : specProp.chartType === 'bar' && specProp.variant === selectedChart))
+  const expandedIds = usesLiveUi ? ui.expandedNodeIds : staticExpandedIds(storeSpecRef.current)
   const collapsedIds = usesLiveUi ? ui.collapsedNodeIds : []
   const setTargetZoom = useEditorStore((s) => s.setTargetZoom)
   const setHoverId = useEditorStore((s) => s.setHoverId)
@@ -106,13 +116,23 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
   const beginTreeLayoutAnim = useEditorStore((s) => s.beginTreeLayoutAnim)
 
   useEffect(() => {
-    const sig = `${ui.animKey}:${spec.variant}:${JSON.stringify(spec.data)}`
+    const sig = `${ui.animKey}:${variantForAnim}:${JSON.stringify(dataForAnim)}`
     if (dataAnimSigRef.current && dataAnimSigRef.current !== sig) {
       valueAnimFromRef.current = { ...lastBarTargetsRef.current }
     }
     dataAnimSigRef.current = sig
     dirtyRef.current = true
-  }, [spec.data, spec.variant, ui.animKey])
+  }, [dataForAnim, variantForAnim, ui.animKey])
+
+  useEffect(() => {
+    if (specProp !== undefined) return
+    return useEditorStore.subscribe((state, prev) => {
+      if (state.spec === prev.spec) return
+      if (state.ui.interactionActive && !interactive) return
+      storeSpecRef.current = state.spec
+      dirtyRef.current = true
+    })
+  }, [specProp, interactive])
 
   useEffect(() => {
     const host = previewHostRef.current
@@ -122,7 +142,7 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
       previewContentWidthRef.current = readPreviewViewportWidth(
         containerRef.current,
         host,
-        spec.chartPadding,
+        chartPadding,
         previewContentWidthRef.current,
       )
       dirtyRef.current = true
@@ -133,9 +153,10 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
     ro.observe(host)
     if (containerRef.current) ro.observe(containerRef.current)
     return () => ro.disconnect()
-  }, [spec.chartPadding])
+  }, [chartPadding])
 
   const layoutSpecForInteraction = useCallback(() => {
+    const spec = storeSpecRef.current
     const viewportW = readPreviewViewportWidth(
       containerRef.current,
       previewHostRef.current,
@@ -143,12 +164,13 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
       previewContentWidthRef.current,
     )
     return specForPreviewWidth(spec, viewportW, displayZoomRef.current)
-  }, [spec, spec.chartPadding])
+  }, [])
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
+    const spec = storeSpecRef.current
     const z = displayZoomRef.current
     const dpr =
       spec.renderer.devicePixelRatio === 'auto'
@@ -252,13 +274,6 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
 
     canvas.dataset.sceneHeight = String(scene.height)
   }, [
-    spec,
-    spec.animation.duration,
-    spec.animation.delay,
-    spec.animation.easing,
-    spec.animation.customBezier,
-    spec.animation.enabled,
-    spec.chartPadding,
     ui.animStart,
     ui.animKey,
     usesLiveUi,
@@ -295,6 +310,7 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
   useEffect(() => {
     const subscriber = {
       tick: () => {
+        const spec = storeSpecRef.current
         const state = useEditorStore.getState()
         const target = state.ui.targetZoom
         const current = displayZoomRef.current
@@ -355,7 +371,7 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
       },
     }
     return subscribePreviewTicker(subscriber)
-  }, [draw, spec, usesLiveUi])
+  }, [draw, usesLiveUi])
 
   const pointerToScene = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
@@ -383,12 +399,14 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
   }
 
   const valueAnimForInteraction = () => {
+    const spec = storeSpecRef.current
     const elapsed = performance.now() - ui.animStart
     const t = spec.animation.enabled ? computeAnimProgress(spec.animation, elapsed, 0) : 1
     return { t, from: valueAnimFromRef.current }
   }
 
   const onMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const spec = storeSpecRef.current
     if (!usesLiveUi || !spec.interaction.hover) return
     const pt = pointerToScene(e)
     if (!pt) return
@@ -406,6 +424,7 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
   }
 
   const onClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const spec = storeSpecRef.current
     if (!usesLiveUi) return
     const pt = pointerToScene(e)
     if (!pt) return
@@ -443,9 +462,12 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, ChartCanvasProps>(funct
       padded={padded}
       hostStyle={
         {
-          '--euclid-chart-inset': `${spec.chartPadding}px`,
+          '--euclid-chart-inset': `${chartPadding}px`,
           ...(padded
-            ? { borderRadius: `${spec.containerCornerRadius ?? 12}px`, overflow: 'hidden' as const }
+            ? {
+                borderRadius: `${containerCornerRadius ?? 12}px`,
+                overflow: 'hidden' as const,
+              }
             : {}),
         } as CSSProperties
       }

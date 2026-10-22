@@ -1,8 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  beginCoalescedInteraction,
+  endCoalescedInteraction,
+  flushCoalescedCommit,
+  scheduleCoalescedCommit,
+} from '../../store/interactionCommit'
 import { cn } from '../../lib/utils'
+import { ControlTooltip } from './tooltip'
 
 type SliderControlProps = {
   label: string
+  /** Native hover tooltip for the whole control row. */
+  tooltip?: string
   value: number
   min: number
   max: number
@@ -18,8 +27,6 @@ type SliderControlProps = {
 type SliderVisualState = 'default' | 'hover' | 'pressed' | 'typing'
 
 const DRAG_THRESHOLD_PX = 3
-/** Min interval for parent/chart updates while dragging (slider UI stays local + immediate). */
-const DRAG_COMMIT_MS = 48
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n))
@@ -100,6 +107,7 @@ const fillBgColors: Record<Exclude<SliderVisualState, 'typing'>, string> = {
 
 export function SliderControl({
   label,
+  tooltip,
   value,
   min,
   max,
@@ -119,9 +127,7 @@ export function SliderControl({
 
   const trackRef = useRef<HTMLDivElement>(null)
   const valueInputRef = useRef<HTMLInputElement>(null)
-  const pendingDragCommit = useRef<number | null>(null)
-  const lastDragCommitAt = useRef(0)
-  const dragCommitTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingDragValue = useRef<number | null>(null)
   const pointerSession = useRef<{
     pointerId: number
     startX: number
@@ -148,57 +154,16 @@ export function SliderControl({
     [onChange],
   )
 
-  const clearDragCommitSchedule = useCallback(() => {
-    if (dragCommitTimer.current != null) {
-      clearTimeout(dragCommitTimer.current)
-      dragCommitTimer.current = null
-    }
-  }, [])
-
-  const flushDragCommit = useCallback(() => {
-    clearDragCommitSchedule()
-    const v = pendingDragCommit.current
-    if (v != null) {
-      commitToParent(v)
-      lastDragCommitAt.current = performance.now()
-    }
-  }, [clearDragCommitSchedule, commitToParent])
-
-  const scheduleDragCommit = useCallback(
-    (v: number) => {
-      pendingDragCommit.current = v
-      const now = performance.now()
-      const elapsed = now - lastDragCommitAt.current
-      if (elapsed >= DRAG_COMMIT_MS) {
-        commitToParent(v)
-        lastDragCommitAt.current = now
-        return
-      }
-      if (dragCommitTimer.current != null) return
-      dragCommitTimer.current = setTimeout(() => {
-        dragCommitTimer.current = null
-        const pending = pendingDragCommit.current
-        if (pending != null) {
-          commitToParent(pending)
-          lastDragCommitAt.current = performance.now()
-        }
-      }, DRAG_COMMIT_MS - elapsed)
-    },
-    [commitToParent],
-  )
-
-  useEffect(() => () => clearDragCommitSchedule(), [clearDragCommitSchedule])
-
   const setValueLive = useCallback(
     (next: number) => {
       const v = normalize(next)
-      clearDragCommitSchedule()
+      flushCoalescedCommit()
       commitToParent(v)
       setDragValue(null)
-      pendingDragCommit.current = null
+      pendingDragValue.current = null
       setText(format(v))
     },
-    [clearDragCommitSchedule, commitToParent, format, normalize],
+    [commitToParent, format, normalize],
   )
 
   const setValueWhileDragging = useCallback(
@@ -206,9 +171,13 @@ export function SliderControl({
       const v = normalize(next)
       setDragValue(v)
       setText(format(v))
-      scheduleDragCommit(v)
+      pendingDragValue.current = v
+      scheduleCoalescedCommit(() => {
+        const pending = pendingDragValue.current
+        if (pending != null) commitToParent(pending)
+      })
     },
-    [format, normalize, scheduleDragCommit],
+    [commitToParent, format, normalize],
   )
 
   const valueFromClientX = useCallback(
@@ -257,8 +226,11 @@ export function SliderControl({
     }
 
     if (wasDrag) {
-      flushDragCommit()
-      pendingDragCommit.current = null
+      const v = pendingDragValue.current
+      endCoalescedInteraction(() => {
+        if (v != null) commitToParent(v)
+      })
+      pendingDragValue.current = null
       setDragValue(null)
     }
 
@@ -288,6 +260,7 @@ export function SliderControl({
       if (Math.abs(dx) < DRAG_THRESHOLD_PX) return
       session.dragged = true
       setDragging(true)
+      beginCoalescedInteraction()
       if (editing) {
         commitText()
         valueInputRef.current?.blur()
@@ -325,7 +298,7 @@ export function SliderControl({
   const showHoverBorder =
     isColors && hovered && visual !== 'typing' && !dragging
 
-  return (
+  const slider = (
     <div
       ref={trackRef}
       role="slider"
@@ -406,5 +379,11 @@ export function SliderControl({
         />
       </div>
     </div>
+  )
+
+  return (
+    <ControlTooltip content={dragging || editing ? undefined : tooltip} side="top" align="start">
+      {slider}
+    </ControlTooltip>
   )
 }

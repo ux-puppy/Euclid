@@ -175,6 +175,7 @@ const visualizationPaletteSchema = z.object({
     .object({
       minRatioOnBackground: z.number().min(1).max(21),
       minRatioOnBarText: z.number().min(1).max(21),
+      nudgedFills: z.array(z.string()).optional(),
     })
     .optional(),
 

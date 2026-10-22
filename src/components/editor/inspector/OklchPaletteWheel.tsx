@@ -15,6 +15,7 @@ import { baseThemedHex } from '../../../visualization-colors/variantGenerator'
 import type { ChartTheme } from '../../../visualization-colors/types'
 import { ColorSequenceDot } from './ColorSequenceDot'
 import { IRO_WHEEL_LAYOUT } from './iroWheelLayout'
+import { ControlTooltip } from '../../ui/tooltip'
 import { computeWheelLabels } from './paletteWheelLabels'
 
 export const DEFAULT_PALETTE_WHEEL_SIZE = 200
@@ -29,6 +30,7 @@ type OklchPaletteWheelProps = {
   wheelWrapRef?: RefObject<HTMLDivElement | null>
   /** When false, skips iro so only one picker runs in the app. */
   interactive?: boolean
+  tooltip?: string
 }
 
 export function OklchPaletteWheel({
@@ -40,6 +42,7 @@ export function OklchPaletteWheel({
   className,
   wheelWrapRef: wheelWrapRefProp,
   interactive = true,
+  tooltip,
 }: OklchPaletteWheelProps) {
   const localWrapRef = useRef<HTMLDivElement>(null)
   const wheelWrapRef = wheelWrapRefProp ?? localWrapRef
@@ -59,12 +62,12 @@ export function OklchPaletteWheel({
 
   const count = requiredColorCount(spec)
   const sequence = useMemo(
-    () => resolvePaletteSequence(config, theme, count),
-    [config, theme, count],
+    () => resolvePaletteSequence(config, theme, count, spec),
+    [config, theme, count, spec],
   )
   const preview = useMemo(
-    () => resolvePalettePreview(config, theme, count),
-    [config, theme, count],
+    () => resolvePalettePreview(config, theme, count, spec),
+    [config, theme, count, spec],
   )
   const startHex = useMemo(
     () => baseThemedHex(config.startHue, config, theme),
@@ -209,7 +212,7 @@ export function OklchPaletteWheel({
     syncingColorsRef.current = false
   }, [interactive, startHex])
 
-  return (
+  const wheel = (
     <div
       ref={wheelWrapRef}
       className={className ?? 'relative mx-auto aspect-square w-full max-w-[200px]'}
@@ -238,6 +241,12 @@ export function OklchPaletteWheel({
         </div>
       )}
     </div>
+  )
+
+  return (
+    <ControlTooltip content={tooltip} side="left" align="center">
+      {wheel}
+    </ControlTooltip>
   )
 }
 

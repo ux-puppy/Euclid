@@ -14,6 +14,7 @@ import {
 } from './inspectorStyles'
 import { cn } from '../../../lib/utils'
 import { SegmentedControl } from '../../ui/segmented-control'
+import { colorsInspectorTooltips as T } from './colorsInspectorTooltips'
 
 const STATIC_SURFACE_ROWS = [
   ['background', 'Background'],
@@ -28,8 +29,16 @@ const STATIC_SURFACE_ROWS = [
 ] as const satisfies ReadonlyArray<[keyof ChartSurfaceColors, string]>
 
 const BAR_ENCODING_OPTIONS = [
-  { value: 'categorical' as const, label: 'Categorical' },
-  { value: 'value' as const, label: 'Value based' },
+  {
+    value: 'categorical' as const,
+    label: 'Categorical',
+    tooltip: T.encoding.categorical,
+  },
+  {
+    value: 'value' as const,
+    label: 'Value based',
+    tooltip: T.encoding.value,
+  },
 ]
 
 export function InspectorColorsTab() {
@@ -114,12 +123,13 @@ export function InspectorColorsTab() {
         />
       )}
 
-      <ColorsInspectorSection title="Static colors" defaultOpen={false}>
+      <ColorsInspectorSection title="Static colors" titleTooltip={T.section.staticColors} defaultOpen={false}>
         {STATIC_SURFACE_ROWS.map(([key, label]) => (
           <ColorTokenRow
             key={`${key}-${label}`}
             variant="pill"
             label={label}
+            tooltip={T.staticSurface[key]}
             value={surface[key]}
             onChange={(c) =>
               setSharedSpec((s) => {

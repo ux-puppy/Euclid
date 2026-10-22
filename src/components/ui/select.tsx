@@ -55,7 +55,9 @@ export function SelectContent({
           'z-50 rounded-lg border border-border bg-popover p-1 shadow-lg',
           'w-[var(--radix-select-trigger-width)]',
           'overflow-x-hidden',
-          fitContent ? 'overflow-y-visible' : 'max-h-60 overflow-y-auto',
+          fitContent
+            ? 'overflow-y-visible'
+            : 'euclid-native-scroll max-h-60 overflow-y-auto',
           className,
         )}
         position="popper"

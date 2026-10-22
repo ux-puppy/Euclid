@@ -2,7 +2,7 @@ import type { ChartSpec } from '../chart-spec/types'
 import { resolveSurfaceForTheme } from '../chart-spec/surfaceColors'
 import type { AccessibilityContrastThresholds, ChartTheme, VisualizationPaletteConfig } from '../visualization-colors/types'
 import { requiredColorCount, resolveVisualizationColors } from '../visualization-colors/resolve'
-import { contrastRatio } from './contrast'
+import { compositeOver, contrastRatio, contrastRatioFillOnBackground } from './contrast'
 
 export type PaletteAccessibilitySlot = {
   fill: string
@@ -58,14 +58,17 @@ export function paletteAccessibilitySlots(
       continue
     }
     const fill = viz.colorForSeriesIndex(i)
-    const ratioOnBackground = contrastRatio(fill, surface.background)
-    const ratioOnBarText = contrastRatio(surface.textSecondary, fill)
+    const ratioOnBackground = contrastRatioFillOnBackground(fill, surface.background)
+    const visibleFill = compositeOver(fill, surface.background)
+    const ratioOnBarText = contrastRatio(surface.textSecondary, visibleFill)
+    const passOnBackground = passes(ratioOnBackground, thresholds.minRatioOnBackground)
+    const passOnBarText = passes(ratioOnBarText, thresholds.minRatioOnBarText)
     slots.push({
       fill,
       ratioOnBackground,
       ratioOnBarText,
-      passOnBackground: passes(ratioOnBackground, thresholds.minRatioOnBackground),
-      passOnBarText: passes(ratioOnBarText, thresholds.minRatioOnBarText),
+      passOnBackground,
+      passOnBarText,
     })
   }
   return slots

@@ -143,6 +143,8 @@ type UiState = {
   treeUiByVariant: Partial<
     Record<ChartVariant, { expandedNodeIds: string[]; collapsedNodeIds: string[] }>
   >
+  /** Pointer drag on slider / gradient — defer heavy inspector, coalesce store commits. */
+  interactionActive: boolean
 }
 
 type EditorState = {
@@ -165,6 +167,7 @@ type EditorState = {
   toggleTheme: () => void
   setInspectorTab: (tab: UiState['inspectorTab']) => void
   setPaletteWheelInView: (inView: boolean) => void
+  setInteractionActive: (active: boolean) => void
   setInspectorWidth: (w: number) => void
   setHoverId: (id: string | null) => void
   setSelectId: (id: string | null) => void
@@ -513,7 +516,13 @@ const useTemporalStore = create<EditorState>()(
         paletteReturnChart: initialPaletteReturn,
         paletteWheelInView: true,
         treeUiByVariant: {},
+        interactionActive: false,
       },
+
+      setInteractionActive: (active) =>
+        set((state) => {
+          state.ui.interactionActive = active
+        }),
 
       setSpec: (updater) =>
         set((state) => {

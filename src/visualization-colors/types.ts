@@ -72,6 +72,11 @@ export type AccessibilityContrastThresholds = {
   minRatioOnBarText: number
 }
 
+export type AccessibilityPaletteSettings = AccessibilityContrastThresholds & {
+  /** Base-slot fills from the last explicit “Adjust colors” action (not recomputed on edit). */
+  nudgedFills?: string[]
+}
+
 export type VisualizationPaletteConfig = {
   startHue: number
   base: BaseCorrection
@@ -98,7 +103,7 @@ export type VisualizationPaletteConfig = {
   excessColorHandling?: ExcessColorHandling
   hierarchyMode: HierarchyColorMode
   assignments?: Record<string, number>
-  accessibility?: AccessibilityContrastThresholds
+  accessibility?: AccessibilityPaletteSettings
 }
 
 export type ChartTheme = 'light' | 'dark'

@@ -1,5 +1,13 @@
 import { ArrowsLeftRight, X } from '@phosphor-icons/react'
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 import {
   addGradientStop,
   divergingCenterStopIndex,
@@ -24,7 +32,14 @@ import type {
   HeatmapGradient,
 } from '../../../heatmap-colors/types'
 import type { ChartTheme } from '../../../visualization-colors/types'
+import type { GradientStop } from '../../../heatmap-colors/types'
 import { cn } from '../../../lib/utils'
+import {
+  beginCoalescedInteraction,
+  endCoalescedInteraction,
+  scheduleCoalescedCommit,
+} from '../../../store/interactionCommit'
+import { useEditorStore } from '../../../store/editorStore'
 import { IroColorPicker } from '../../ui/iro-color-picker'
 import { Button } from '../../ui/button'
 
@@ -56,23 +71,31 @@ function displayStopColor(
 
 const DRAG_THRESHOLD_PX = 4
 
+/** End stops sit inset; outer 2px of the bar repeat endpoint colors. */
+const GRADIENT_BAR_ENDPOINT_INSET_PX = 2
+
 const barHandleClass =
   'h-[30px] w-3 rounded-lg border-2 border-white shadow-[0_0_4px_rgba(0,0,0,0.5)] p-0 min-h-0 min-w-0 bg-transparent'
 
-/** Figma: end handles flush to bar edges; all vertically centered on padded gradient track. */
 function handleAnchorStyle(position: number): CSSProperties {
   const p = Math.min(1, Math.max(0, position))
+  const inset = GRADIENT_BAR_ENDPOINT_INSET_PX
+  const innerSpan = `(100% - ${inset * 2}px)`
   const vertical: Pick<CSSProperties, 'top' | 'transform'> = {
     top: '50%',
     transform: 'translateY(-50%)',
   }
   if (p <= 0.0001) {
-    return { left: 0, ...vertical }
+    return { left: inset, ...vertical }
   }
   if (p >= 0.9999) {
-    return { left: '100%', top: '50%', transform: 'translate(-100%, -50%)' }
+    return { left: `calc(100% - ${inset}px)`, top: '50%', transform: 'translate(-100%, -50%)' }
   }
-  return { left: `${p * 100}%`, top: '50%', transform: 'translate(-50%, -50%)' }
+  return {
+    left: `calc(${inset}px + ${innerSpan} * ${p})`,
+    top: '50%',
+    transform: 'translate(-50%, -50%)',
+  }
 }
 
 type DragState = {
@@ -82,6 +105,34 @@ type DragState = {
   startY: number
   anchorColor: string
   anchorPosition: number
+}
+
+function buildBarBackgroundCss(
+  displayGradient: HeatmapGradient,
+  colorBlend: HeatmapColorBlend,
+  useStopAlpha: boolean,
+  sampleCount: number,
+): string {
+  const samples = sampleGradientStrip(
+    displayGradient,
+    colorBlend,
+    sampleCount,
+    useStopAlpha,
+  )
+  if (samples.length === 0) return 'transparent'
+  const inset = GRADIENT_BAR_ENDPOINT_INSET_PX
+  const innerSpan = `(100% - ${inset * 2}px)`
+  const first = samples[0]!
+  const last = samples[samples.length - 1]!
+  const parts = [`${first} 0`, `${first} ${inset}px`]
+  if (samples.length > 2) {
+    for (let i = 1; i < samples.length - 1; i++) {
+      const f = i / (samples.length - 1)
+      parts.push(`${samples[i]} calc(${inset}px + ${innerSpan} * ${f})`)
+    }
+  }
+  parts.push(`${last} calc(100% - ${inset}px)`, `${last} 100%`)
+  return `linear-gradient(to right, ${parts.join(', ')})`
 }
 
 function findDraggedStopIndex(gradient: HeatmapGradient, anchor: DragState): number {
@@ -114,35 +165,52 @@ export function HeatmapGradientEditor({
 
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [colorPickerIndex, setColorPickerIndex] = useState<number | null>(null)
+  /** Local stop positions while dragging — handle + bar stay on pointer without store round-trip. */
+  const [liveStops, setLiveStops] = useState<GradientStop[] | null>(null)
+
+  const interactionActive = useEditorStore((s) => s.ui.interactionActive)
+  const deferredGradient = useDeferredValue(gradient)
 
   const stops = useMemo(
     () => sortStops(normalizeGradientStops(gradient.stops)),
     [gradient.stops],
   )
-  stopCountRef.current = stops.length
+  const stopListStops = useMemo(
+    () =>
+      sortStops(
+        normalizeGradientStops(
+          (interactionActive ? deferredGradient : gradient).stops,
+        ),
+      ),
+    [interactionActive, deferredGradient, gradient],
+  )
+  const displayStops = liveStops ?? stops
+  stopCountRef.current = displayStops.length
 
   const displayGradient = useMemo(
-    () => themeAdaptGradient({ stops }, themeConfig, theme),
-    [stops, themeConfig, theme],
+    () => themeAdaptGradient({ stops: displayStops }, themeConfig, theme),
+    [displayStops, themeConfig, theme],
   )
 
-  const barBackground = useMemo(() => {
-    const samples = sampleGradientStrip(
-      displayGradient,
-      colorBlend,
-      64,
-      themeConfig.useStopAlpha,
-    )
-    const step = 100 / Math.max(1, samples.length - 1)
-    const parts = samples.map((c, i) => `${c} ${(i * step).toFixed(2)}%`)
-    return `linear-gradient(to right, ${parts.join(', ')})`
-  }, [displayGradient, colorBlend, themeConfig.useStopAlpha])
+  const barBackground = useMemo(
+    () =>
+      buildBarBackgroundCss(
+        displayGradient,
+        colorBlend,
+        themeConfig.useStopAlpha,
+        dragIndex !== null ? 32 : 64,
+      ),
+    [displayGradient, colorBlend, themeConfig.useStopAlpha, dragIndex],
+  )
 
   const pickStopAtClientX = useCallback((clientX: number) => {
     const bar = barRef.current
     if (!bar) return 0.5
     const rect = bar.getBoundingClientRect()
-    return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    const inset = GRADIENT_BAR_ENDPOINT_INSET_PX
+    const innerWidth = Math.max(1, rect.width - inset * 2)
+    const t = (clientX - rect.left - inset) / innerWidth
+    return Math.min(1, Math.max(0, t))
   }, [])
 
   useEffect(() => {
@@ -153,8 +221,10 @@ export function HeatmapGradientEditor({
       const dy = e.clientY - d.startY
       if (!d.moved && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
         d.moved = true
+        beginCoalescedInteraction()
         setDragIndex(d.index)
         setColorPickerIndex(null)
+        setLiveStops(sortStops(normalizeGradientStops(gradientRef.current.stops)))
       }
       const n = stopCountRef.current
       if (d.moved) {
@@ -166,7 +236,9 @@ export function HeatmapGradientEditor({
           gradientRef.current = next
           d.anchorPosition = t
           d.index = findDraggedStopIndex(next, d)
-          onChangeRef.current(next)
+          const sorted = sortStops(normalizeGradientStops(next.stops))
+          setLiveStops(sorted)
+          scheduleCoalescedCommit(() => onChangeRef.current(gradientRef.current))
         }
       }
     }
@@ -176,6 +248,10 @@ export function HeatmapGradientEditor({
       if (d && !d.moved) {
         setColorPickerIndex(d.index)
       }
+      if (d?.moved) {
+        endCoalescedInteraction(() => onChangeRef.current(gradientRef.current))
+      }
+      setLiveStops(null)
       dragRef.current = null
       setDragIndex(null)
     }
@@ -263,8 +339,8 @@ export function HeatmapGradientEditor({
           aria-hidden
         />
         <div className="relative z-[1] h-[30px] w-full shrink-0 pointer-events-none" aria-hidden />
-        {stops.map((stop, i) => {
-          const isEnd = i === 0 || i === stops.length - 1
+        {displayStops.map((stop, i) => {
+          const isEnd = i === 0 || i === displayStops.length - 1
           const isCenter = diverging && isDivergingCenterStop(stop)
           const handleClass = cn(
             barHandleClass,
@@ -321,10 +397,10 @@ export function HeatmapGradientEditor({
       </div>
 
       <div className="flex w-full min-w-0 flex-col gap-2">
-        {stops.map((stop, i) => {
-          const isEnd = i === 0 || i === stops.length - 1
+        {stopListStops.map((stop, i) => {
+          const isEnd = i === 0 || i === stopListStops.length - 1
           const isCenter = diverging && isDivergingCenterStop(stop)
-          const canRemove = stops.length > 2 && !isEnd && !isCenter
+          const canRemove = stopListStops.length > 2 && !isEnd && !isCenter
           return (
             <div
               key={`row-${i}-${stop.position}`}

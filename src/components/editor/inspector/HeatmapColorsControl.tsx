@@ -1,4 +1,6 @@
+import { useDeferredValue } from 'react'
 import type { HeatmapColorConfig, HeatmapColorMode, HeatmapGradient } from '../../../heatmap-colors/types'
+import { useEditorStore } from '../../../store/editorStore'
 import { normalizeHeatmapColors } from '../../../heatmap-colors/defaults'
 import {
   isDivergingCenterStop,
@@ -15,6 +17,7 @@ import { InspectorSelect } from './InspectorSelect'
 import { InspectorReveal } from './InspectorReveal'
 import { SliderControl } from '../../ui/slider-control'
 import { SwitchRow } from './SwitchRow'
+import { colorsInspectorTooltips as T } from './colorsInspectorTooltips'
 
 type HeatmapColorsControlProps = {
   config: HeatmapColorConfig
@@ -29,8 +32,13 @@ export function HeatmapColorsControl({
   onChange,
   sectionTitle = 'Heatmap scale',
 }: HeatmapColorsControlProps) {
+  const interactionActive = useEditorStore((s) => s.ui.interactionActive)
+  const deferredConfig = useDeferredValue(config)
+  const heavyConfig = interactionActive ? deferredConfig : config
   const normalized = normalizeHeatmapColors(config)
+  const heavyNormalized = normalizeHeatmapColors(heavyConfig)
   const interp = normalized.interpolation
+  const heavyInterp = heavyNormalized.interpolation
 
   const patchInterp = (partial: Partial<HeatmapColorConfig['interpolation']>) => {
     onChange((prev) => {
@@ -85,24 +93,26 @@ export function HeatmapColorsControl({
 
   return (
     <>
-    <ColorsInspectorSection title={sectionTitle}>
+    <ColorsInspectorSection title={sectionTitle} titleTooltip={T.section.heatmapScale}>
       <InspectorSelect
         label="Scale type"
+        tooltip={T.heatmap.scaleType}
         value={normalized.mode}
         options={[
-          { value: 'sequential', label: 'Sequencial' },
-          { value: 'diverging', label: 'Divergent' },
+          { value: 'sequential', label: 'Sequencial', tooltip: T.heatmap.scaleTypeSequential },
+          { value: 'diverging', label: 'Divergent', tooltip: T.heatmap.scaleTypeDiverging },
         ]}
         onChange={(v) => setMode(v as HeatmapColorMode)}
       />
 
       <InspectorSelect
         label="Value scale"
+        tooltip={T.heatmap.valueScale}
         value={interp.scale}
         options={[
-          { value: 'linear', label: 'Linear' },
-          { value: 'log', label: 'Logarithmic' },
-          { value: 'power', label: 'Power (gamma)' },
+          { value: 'linear', label: 'Linear', tooltip: T.heatmap.scaleLinear },
+          { value: 'log', label: 'Logarithmic', tooltip: T.heatmap.scaleLog },
+          { value: 'power', label: 'Power (gamma)', tooltip: T.heatmap.scalePower },
         ]}
         onChange={(v) =>
           patchInterp({ scale: v as HeatmapColorConfig['interpolation']['scale'] })
@@ -111,6 +121,7 @@ export function HeatmapColorsControl({
 
       <SwitchRow
         label="Quantized"
+        tooltip={T.heatmap.quantized}
         checked={interp.scaleQuantized}
         onCheckedChange={(checked) => patchInterp({ scaleQuantized: checked })}
       />
@@ -118,6 +129,7 @@ export function HeatmapColorsControl({
       <InspectorReveal show={interp.scaleQuantized}>
         <SliderControl
           label="Step count"
+          tooltip={T.heatmap.stepCount}
           value={interp.scaleSteps}
           min={2}
           max={24}
@@ -129,6 +141,7 @@ export function HeatmapColorsControl({
       <InspectorReveal show={interp.scale === 'log'}>
         <SliderControl
           label="Log base"
+          tooltip={T.heatmap.logBase}
           value={interp.scaleLogBase}
           min={2}
           max={100}
@@ -140,6 +153,7 @@ export function HeatmapColorsControl({
       <InspectorReveal show={interp.scale === 'power'}>
         <SliderControl
           label="Gamma (γ)"
+          tooltip={T.heatmap.gamma}
           value={interp.scaleGamma}
           min={0.15}
           max={4}
@@ -148,18 +162,19 @@ export function HeatmapColorsControl({
         />
       </InspectorReveal>
 
-      <HeatmapScaleCurveGraph interpolation={interp} />
+      <HeatmapScaleCurveGraph interpolation={heavyInterp} />
 
       <HeatmapColorBlendCompare
-        gradient={normalized.sequential}
-        themeConfig={normalized}
+        gradient={heavyNormalized.sequential}
+        themeConfig={heavyNormalized}
         theme={theme}
-        colorBlend={interp.colorBlend}
+        colorBlend={heavyInterp.colorBlend}
         onColorBlendChange={(colorBlend) => patchInterp({ colorBlend })}
       />
 
       <SwitchRow
         label="Apply stop transparency"
+        tooltip={T.heatmap.stopTransparency}
         checked={normalized.useStopAlpha}
         onCheckedChange={(useStopAlpha) =>
           onChange((prev) => ({ ...normalizeHeatmapColors(prev), useStopAlpha }))
@@ -180,9 +195,10 @@ export function HeatmapColorsControl({
       />
     </ColorsInspectorSection>
 
-    <ColorsInspectorSection title="Theme adaptation">
+    <ColorsInspectorSection title="Theme adaptation" titleTooltip={T.section.themeAdaptation}>
       <SwitchRow
         label="Adapt inversion"
+        tooltip={T.heatmap.adaptInversion}
         checked={normalized.adaptInversion}
         onCheckedChange={(adaptInversion) =>
           onChange((prev) => ({ ...normalizeHeatmapColors(prev), adaptInversion }))
@@ -194,12 +210,13 @@ export function HeatmapColorsControl({
       </p>
     </ColorsInspectorSection>
 
-    <ColorsInspectorSection title="Light theme" disabled={theme === 'dark'}>
+    <ColorsInspectorSection title="Light theme" titleTooltip={T.section.heatmapLightTheme} disabled={theme === 'dark'}>
       <p className="text-[10px] text-muted-foreground leading-snug">
         Adjust brightness and chroma for the light UI (relative to default scale anchors).
       </p>
       <SliderControl
         label="Light brightness"
+        tooltip={T.heatmap.lightBrightness}
         value={normalized.lightMode.lightness}
         min={0.2}
         max={0.9}
@@ -214,6 +231,7 @@ export function HeatmapColorsControl({
       />
       <SliderControl
         label="Light chroma"
+        tooltip={T.heatmap.lightChroma}
         value={normalized.lightMode.chroma}
         min={0.02}
         max={0.28}
@@ -228,12 +246,13 @@ export function HeatmapColorsControl({
       />
     </ColorsInspectorSection>
 
-    <ColorsInspectorSection title="Dark theme" disabled={theme === 'light'}>
+    <ColorsInspectorSection title="Dark theme" titleTooltip={T.section.heatmapDarkTheme} disabled={theme === 'light'}>
       <p className="text-[10px] text-muted-foreground leading-snug">
         Dark UI applies an OKLCH shift from light settings. Tune dark brightness and chroma here.
       </p>
       <SliderControl
         label="Dark brightness"
+        tooltip={T.heatmap.darkBrightness}
         value={normalized.darkMode.lightness}
         min={0.2}
         max={0.9}
@@ -248,6 +267,7 @@ export function HeatmapColorsControl({
       />
       <SliderControl
         label="Dark chroma"
+        tooltip={T.heatmap.darkChroma}
         value={normalized.darkMode.chroma}
         min={0.02}
         max={0.28}

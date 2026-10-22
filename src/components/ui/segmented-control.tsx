@@ -1,8 +1,9 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { controlSurfaceTransition } from '../../lib/controlSurface'
 import { cn } from '../../lib/utils'
+import { ControlTooltip } from './tooltip'
 
-export type SegmentOption<T extends string> = { value: T; label: string }
+export type SegmentOption<T extends string> = { value: T; label: string; tooltip?: string }
 
 type SegmentedControlProps<T extends string> = {
   options: SegmentOption<T>[]
@@ -87,14 +88,13 @@ export function SegmentedControl<T extends string>({
       />
       {options.map((opt) => {
         const selected = value === opt.value
-        return (
+        const button = (
           <button
             key={opt.value}
             type="button"
             role="tab"
             aria-selected={selected}
             disabled={disabled}
-            title={opt.label}
             onClick={() => onChange(opt.value)}
             className={cn(
               'relative z-[1] font-medium',
@@ -110,6 +110,11 @@ export function SegmentedControl<T extends string>({
           >
             {opt.label}
           </button>
+        )
+        return (
+          <ControlTooltip key={opt.value} content={opt.tooltip} side="top">
+            {button}
+          </ControlTooltip>
         )
       })}
     </div>

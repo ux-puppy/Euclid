@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useEditorStore } from '../../store/editorStore'
 import { cn } from '../../lib/utils'
 import { isBarChartSpec, isBarValueColorEncoding } from '../../chart-spec/types'
+import { stripNudgedFillsFromConfig } from '../../visualization-colors/accessibilityNudge'
 import { OklchPaletteWheel } from './inspector/OklchPaletteWheel'
 
 const FLOATING_WHEEL_SIZE = 168
@@ -63,7 +64,9 @@ export function FloatingPaletteWheel() {
           onChange={(patch) =>
             setSharedSpec((s) => {
               if (!isBarChartSpec(s)) return
-              s.colors.visualization = patch(s.colors.visualization)
+              s.colors.visualization = stripNudgedFillsFromConfig(
+                patch(s.colors.visualization),
+              )
             })
           }
           className="relative aspect-square w-full"

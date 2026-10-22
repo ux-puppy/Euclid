@@ -14,7 +14,7 @@ import { cn } from '../../lib/utils'
 const MIN_THUMB_PX = 28
 
 type ThumbState = {
-  visible: boolean
+  hasOverflow: boolean
   top: number
   height: number
 }
@@ -48,8 +48,9 @@ export function OverlayScrollArea({
   const localHostRef = useRef<HTMLDivElement>(null)
   const localViewportRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ startY: number; startScrollTop: number } | null>(null)
+  const [thumbDragging, setThumbDragging] = useState(false)
   const [thumb, setThumb] = useState<ThumbState>({
-    visible: false,
+    hasOverflow: false,
     top: 0,
     height: 0,
   })
@@ -59,7 +60,7 @@ export function OverlayScrollArea({
     if (!el) return
     const { scrollTop, scrollHeight, clientHeight } = el
     if (scrollHeight <= clientHeight + 1) {
-      setThumb({ visible: false, top: 0, height: 0 })
+      setThumb({ hasOverflow: false, top: 0, height: 0 })
       return
     }
     const track = clientHeight
@@ -67,7 +68,7 @@ export function OverlayScrollArea({
     const maxTop = track - height
     const scrollable = scrollHeight - clientHeight
     const top = scrollable > 0 ? (scrollTop / scrollable) * maxTop : 0
-    setThumb({ visible: true, top, height })
+    setThumb({ hasOverflow: true, top, height })
   }, [])
 
   useEffect(() => {
@@ -92,7 +93,7 @@ export function OverlayScrollArea({
     const onMove = (e: MouseEvent) => {
       const drag = dragRef.current
       const el = localViewportRef.current
-      if (!drag || !el || !thumb.visible) return
+      if (!drag || !el || !thumb.hasOverflow) return
       const track = el.clientHeight
       const maxTop = track - thumb.height
       const scrollable = el.scrollHeight - el.clientHeight
@@ -103,6 +104,7 @@ export function OverlayScrollArea({
     }
     const onUp = () => {
       dragRef.current = null
+      setThumbDragging(false)
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
@@ -110,7 +112,7 @@ export function OverlayScrollArea({
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
-  }, [thumb.visible, thumb.height])
+  }, [thumb.hasOverflow, thumb.height])
 
   const onThumbMouseDown = (e: ReactMouseEvent) => {
     e.preventDefault()
@@ -118,6 +120,7 @@ export function OverlayScrollArea({
     const el = localViewportRef.current
     if (!el) return
     dragRef.current = { startY: e.clientY, startScrollTop: el.scrollTop }
+    setThumbDragging(true)
   }
 
   return (
@@ -130,6 +133,7 @@ export function OverlayScrollArea({
       className={cn(
         'euclid-scroll-host',
         padded && 'euclid-scroll-padded',
+        thumbDragging && 'euclid-scroll-dragging',
         className,
       )}
     >
@@ -146,7 +150,7 @@ export function OverlayScrollArea({
       >
         {children}
       </div>
-      {thumb.visible && (
+      {thumb.hasOverflow && (
         <div className="euclid-scroll-overlay-track" aria-hidden>
           <div
             className="euclid-scroll-overlay-thumb"

@@ -11,6 +11,7 @@ import type { ChartTheme } from '../../../visualization-colors/types'
 import { controlSurface } from '../../../lib/controlSurface'
 import { cn } from '../../../lib/utils'
 import { InspectorSelect } from './InspectorSelect'
+import { colorsInspectorTooltips as T } from './colorsInspectorTooltips'
 import { inspectorFieldGap } from './inspectorStyles'
 
 type HeatmapColorBlendCompareProps = {
@@ -131,10 +132,11 @@ export function HeatmapColorBlendCompare({
     <div className={cn('w-full min-w-0 rounded-lg px-2 py-2', inspectorFieldGap, controlSurface, className)}>
       <InspectorSelect
         label="Color blend between stops"
+        tooltip={T.heatmap.colorBlend}
         value={colorBlend}
         options={[
-          { value: 'oklch', label: 'OKLCH' },
-          { value: 'srgb', label: 'sRGB' },
+          { value: 'oklch', label: 'OKLCH', tooltip: T.heatmap.blendOklch },
+          { value: 'srgb', label: 'sRGB', tooltip: T.heatmap.blendSrgb },
         ]}
         onChange={(v) => onColorBlendChange(v as HeatmapColorBlend)}
         appearance="colors"
