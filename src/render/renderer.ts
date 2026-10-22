@@ -1,7 +1,10 @@
 import { resolveSurfaceForTheme } from '../chart-spec/surfaceColors'
 import type { ChartSpec } from '../chart-spec/types'
+import { isHeatmapChartSpec } from '../chart-spec/types'
 import type { ChartTheme } from '../visualization-colors/types'
 import type { SceneGraph } from '../layout/bar/types'
+import { drawAxisTickLabel } from './drawAxisTick'
+import { drawBarLabelInBar, drawCenteredLabelInBox, drawHeatmapAxisTickLabel } from './labelFade'
 
 function roundRect(
   ctx: CanvasRenderingContext2D,
@@ -68,18 +71,78 @@ export function renderScene(
     ctx.globalAlpha = 1
   }
 
+  const skipAxisTickMarks = isHeatmapChartSpec(spec)
   for (const ax of scene.axes) {
-    ctx.fillStyle = surface.axis
-    ctx.font = `${ax.ticks[0] ? spec.axes.y.fontSize : 11}px ${tickFont}`
-    ctx.textBaseline = 'middle'
+    const defaultFont = `${ax.orientation === 'vertical' ? spec.axes.y.fontSize : spec.axes.x.fontSize}px ${tickFont}`
     for (const t of ax.ticks) {
-      ctx.beginPath()
-      ctx.moveTo(t.x1, t.y1)
-      ctx.lineTo(t.x2, t.y2)
-      ctx.strokeStyle = surface.axis
+      if (!skipAxisTickMarks) {
+        ctx.beginPath()
+        ctx.moveTo(t.x1, t.y1)
+        ctx.lineTo(t.x2, t.y2)
+        ctx.strokeStyle = surface.axis
+        ctx.stroke()
+      }
+      if (skipAxisTickMarks && t.labelBox) {
+        drawHeatmapAxisTickLabel(ctx, t, defaultFont, surface.axis, labels.labelOverflow)
+      } else {
+        drawAxisTickLabel(ctx, t, defaultFont, surface.axis)
+      }
+    }
+  }
+
+  for (const cell of scene.heatmapCells) {
+    if (cell.progress <= 0) continue
+    ctx.globalAlpha = geometry.opacity * cell.progress
+    ctx.fillStyle = cell.fill
+    roundRect(ctx, cell.x, cell.y, cell.width, cell.height, geometry.cornerRadius)
+    ctx.fill()
+    const strokeWidth =
+      geometry.borderWidth > 0
+        ? geometry.borderWidth
+        : cell.state !== 'default'
+          ? 1
+          : 0
+    if (strokeWidth > 0) {
+      ctx.strokeStyle = cell.stroke
+      ctx.lineWidth = strokeWidth
       ctx.stroke()
-      ctx.textAlign = t.textAlign ?? 'right'
-      ctx.fillText(t.label, t.lx, t.ly)
+    }
+    if (labels.show && cell.label && cell.progress >= 0.85) {
+      const pad = 4
+      drawCenteredLabelInBox(ctx, {
+        text: cell.label,
+        boxX: cell.x,
+        boxY: cell.y,
+        boxW: cell.width,
+        boxH: cell.height,
+        font: `${typography.baseFontSize}px ${valueFont}`,
+        textColor: cell.labelColor,
+        pad,
+        labelOverflow: labels.labelOverflow,
+        insetY: labels.insetY,
+      })
+    }
+    ctx.globalAlpha = 1
+  }
+
+  const colorLegend = scene.heatmapColorLegend
+  if (colorLegend) {
+    const { x, y, width, height, samples, minLabel, maxLabel, midLabel } = colorLegend
+    const stepW = width / Math.max(1, samples.length)
+    for (let i = 0; i < samples.length; i++) {
+      ctx.fillStyle = samples[i]!
+      ctx.fillRect(x + i * stepW, y, stepW + 0.5, height)
+    }
+    ctx.fillStyle = surface.textSecondary
+    ctx.font = `${spec.legend.fontSize}px ${typography.fontFamily}`
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
+    ctx.fillText(minLabel, x, y + height + 4)
+    ctx.textAlign = 'right'
+    ctx.fillText(maxLabel, x + width, y + height + 4)
+    if (midLabel) {
+      ctx.textAlign = 'center'
+      ctx.fillText(midLabel, x + width / 2, y + height + 4)
     }
   }
 
@@ -120,40 +183,22 @@ export function renderScene(
     }
 
     if (labels.show && row.label) {
-      ctx.fillStyle = surface.textSecondary
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'middle'
-      const ty = row.y + row.height / 2
       const nameFont = `${typography.baseFontSize}px ${bodyFont}`
       const valueFontSpec = `${typography.baseFontSize}px ${valueFont}`
-      const drawLabelText = () => {
-        if (row.labelValueText != null && row.labelNameText != null) {
-          const colW = labels.valueColumnWidth
-          ctx.textAlign = 'left'
-          ctx.font = valueFontSpec
-          ctx.fillText(row.labelValueText, row.labelX, ty)
-          ctx.font = nameFont
-          ctx.fillText(
-            row.labelNameText,
-            row.labelX + colW + labels.valueLabelGap,
-            ty,
-          )
-        } else {
-          ctx.font =
-            labels.valueFormat.style === 'percent' ? valueFontSpec : nameFont
-          ctx.fillText(row.label, row.labelX, ty)
-        }
-      }
-      if (labels.labelOverflow === 'clip') {
-        ctx.save()
-        ctx.beginPath()
-        ctx.rect(row.barX, row.y, row.barWidth, row.height)
-        ctx.clip()
-        drawLabelText()
-        ctx.restore()
-      } else {
-        drawLabelText()
-      }
+      drawBarLabelInBar(ctx, {
+        label: row.label,
+        labelValueText: row.labelValueText,
+        labelNameText: row.labelNameText,
+        labelX: row.labelX,
+        barX: row.barX,
+        barY: row.y,
+        barWidth: row.barWidth,
+        barHeight: row.height,
+        labels,
+        nameFont,
+        valueFontSpec,
+        textColor: row.labelColor ?? surface.textSecondary,
+      })
     }
 
     if (useSectionReveal) ctx.restore()

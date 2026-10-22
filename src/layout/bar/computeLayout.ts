@@ -1,9 +1,16 @@
 import type { ChartSpec } from '../../chart-spec/types'
+import { isBarChartSpec, isHeatmapChartSpec } from '../../chart-spec/types'
 import type { ChartTheme } from '../../visualization-colors/types'
+import { computeHeatmapLayout } from '../heatmap/computeLayout'
 import { computeCartesianLayout } from './cartesian'
 import { computeListLayout } from './list'
 import type { SceneGraph } from './types'
 import type { ValueAnimState } from './valueAnim'
+
+const emptyHeatmapExtras = {
+  heatmapCells: [] as SceneGraph['heatmapCells'],
+  heatmapColorLegend: null as SceneGraph['heatmapColorLegend'],
+}
 
 export function computeLayout(
   spec: ChartSpec,
@@ -24,8 +31,17 @@ export function computeLayout(
     treeAnimLayoutCollapsed?: readonly string[]
   },
 ): SceneGraph {
-  if (spec.layout.mode === 'cartesian') {
-    return computeCartesianLayout(
+  if (isHeatmapChartSpec(spec)) {
+    return computeHeatmapLayout(
+      spec,
+      ui.theme,
+      ui.hoverId,
+      ui.selectId,
+      ui.animProgress,
+    )
+  }
+  if (isBarChartSpec(spec) && spec.layout.mode === 'cartesian') {
+    const scene = computeCartesianLayout(
       spec,
       ui.theme,
       ui.hoverId,
@@ -33,6 +49,7 @@ export function computeLayout(
       ui.animProgress,
       ui.valueAnim,
     )
+    return { ...scene, ...emptyHeatmapExtras }
   }
   const expandedIds =
     ui.treeRevealAnimStart != null && ui.treeAnimUseBeforeLayout
@@ -42,7 +59,10 @@ export function computeLayout(
     ui.treeRevealAnimStart != null && ui.treeAnimUseBeforeLayout
       ? ui.treeAnimLayoutCollapsed ?? ui.collapsedIds
       : ui.collapsedIds
-  return computeListLayout(
+  if (!isBarChartSpec(spec)) {
+    throw new Error('Invalid bar list layout input')
+  }
+  const scene = computeListLayout(
     spec,
     ui.theme,
     ui.hoverId,
@@ -56,4 +76,5 @@ export function computeLayout(
     ui.treeHideRowIds ?? [],
     ui.valueAnim,
   )
+  return { ...scene, ...emptyHeatmapExtras }
 }

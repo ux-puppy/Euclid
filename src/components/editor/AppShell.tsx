@@ -9,12 +9,8 @@ export function AppShell() {
   const undo = useEditorStore((s) => s.undo)
   const redo = useEditorStore((s) => s.redo)
   const theme = useEditorStore((s) => s.ui.theme)
-  const navWidth = useEditorStore((s) => s.ui.navWidth)
   const inspectorWidth = useEditorStore((s) => s.ui.inspectorWidth)
-  const setNavWidth = useEditorStore((s) => s.setNavWidth)
   const setInspectorWidth = useEditorStore((s) => s.setInspectorWidth)
-  const nudgeNavWidth = (dx: number) =>
-    setNavWidth(useEditorStore.getState().ui.navWidth + dx)
   const nudgeInspectorWidth = (dx: number) =>
     setInspectorWidth(useEditorStore.getState().ui.inspectorWidth - dx)
 
@@ -39,8 +35,7 @@ export function AppShell() {
 
   return (
     <div className="flex h-full w-full bg-background text-foreground overflow-hidden">
-      <NavSidebar width={navWidth} />
-      <PanelResizeHandle onDrag={nudgeNavWidth} />
+      <NavSidebar />
       <div className="flex flex-1 min-w-0 h-full min-h-0 gap-[2px] py-2 pr-2">
         <PreviewPane />
         <PanelResizeHandle onDrag={nudgeInspectorWidth} />

@@ -1,9 +1,12 @@
-import type { ChartSpec } from '../chart-spec/types'
+import { nudgedFillForBaseIndex } from './accessibilityNudge'
+import type { BarChartSpec, ChartSpec } from '../chart-spec/types'
+import { isBarChartSpec } from '../chart-spec/types'
+import { normalizePaletteConfig } from './defaults'
 import { generateBaseColors } from './paletteGenerator'
 import { assignmentIndex } from './categoryAssignment'
 import {
-  baseThemedHex,
   depthLevelHex,
+  hexFromBaseVisualizationColor,
   hierarchyLevelHex,
 } from './variantGenerator'
 import type {
@@ -13,9 +16,15 @@ import type {
   VisualizationPaletteConfig,
 } from './types'
 
+/** Distinct base palette slots (one hue per tabular series / top-level tree branch). */
 export function requiredColorCount(spec: ChartSpec): number {
+  if (!isBarChartSpec(spec)) return 1
+  return requiredBarColorCount(spec)
+}
+
+export function requiredBarColorCount(spec: BarChartSpec): number {
   if (spec.data.shape === 'tabular') {
-    return Math.max(spec.data.series.length, spec.data.categories.length, 1)
+    return Math.max(spec.data.series.length, 1)
   }
   const breadth = treeTopLevelIds(spec).length
   return Math.max(breadth, 1)
@@ -51,15 +60,28 @@ function seriesIds(spec: ChartSpec): string[] {
   return spec.data.series.map((s) => s.id)
 }
 
+function applyBakedNudge(
+  baseIndex: number,
+  hex: string,
+  config: VisualizationPaletteConfig,
+): string {
+  return nudgedFillForBaseIndex(config, baseIndex, hex)
+}
+
 export function resolveVisualizationColors(
   config: VisualizationPaletteConfig,
   spec: ChartSpec,
   theme: ChartTheme,
 ): ResolvedVisualizationColors {
+  const normalized = normalizePaletteConfig(config)
   const count = requiredColorCount(spec)
   const baseColors = generateBaseColors(config, count)
-  const seriesByIndex = baseColors.map((b) =>
-    baseThemedHex(b.hue, config, theme),
+  const seriesByIndex = baseColors.map((b, i) =>
+    applyBakedNudge(
+      i,
+      hexFromBaseVisualizationColor(b, config, theme, count),
+      config,
+    ),
   )
 
   const depthLevels = maxTreeDepth(spec)
@@ -78,11 +100,17 @@ export function resolveVisualizationColors(
         : index
     const base = baseColors[assignIdx % baseColors.length]
     if (!base) return seriesByIndex[index % seriesByIndex.length] ?? '#888'
-    return baseThemedHex(base.hue, config, theme)
+    return applyBakedNudge(
+      assignIdx % baseColors.length,
+      hexFromBaseVisualizationColor(base, config, theme, count),
+      config,
+    )
   }
 
   const colorForTreeRow = (row: TreeRowColorInput): string => {
-    if (row.explicitColor) return row.explicitColor
+    if (row.explicitColor) {
+      return row.explicitColor
+    }
 
     if (config.hierarchyMode === 'globalDepth') {
       return depthByLevel[row.depth % depthByLevel.length] ?? seriesByIndex[0]!
@@ -112,7 +140,26 @@ export function resolvePalettePreview(
   config: VisualizationPaletteConfig,
   theme: ChartTheme,
   colorCount: number,
+  spec?: ChartSpec,
 ): string[] {
-  const bases = generateBaseColors(config, colorCount)
-  return bases.map((b) => baseThemedHex(b.hue, config, theme))
+  return resolvePaletteSequence(config, theme, colorCount, spec).map((s) => s.hex)
+}
+
+/** Palette slots in generator order (updates when hue layout / smart ordering changes). */
+export function resolvePaletteSequence(
+  config: VisualizationPaletteConfig,
+  theme: ChartTheme,
+  colorCount: number,
+  spec?: ChartSpec,
+): { sequence: number; hex: string }[] {
+  const n = Math.max(1, colorCount)
+  const bases = generateBaseColors(config, n)
+  return bases.map((b, i) => {
+    const raw = hexFromBaseVisualizationColor(b, config, theme, n)
+    const hex = spec ? applyBakedNudge(i, raw, config) : raw
+    return {
+      sequence: i + 1,
+      hex,
+    }
+  })
 }

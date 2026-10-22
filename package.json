@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate-factory-defaults": "vitest run src/chart-spec/updateFactoryDefaultBundle.test.ts",
+    "bake-defaults": "vitest run src/chart-spec/updateFactoryDefaultBundle.test.ts"
   },
   "dependencies": {
     "@jaames/iro": "^5.5.2",
@@ -20,6 +22,7 @@
     "@radix-ui/react-slider": "^1.4.7",
     "@radix-ui/react-switch": "^1.3.7",
     "@radix-ui/react-tabs": "^1.1.21",
+    "@radix-ui/react-tooltip": "^1.4.1",
     "bezier-easing": "^3.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

@@ -1,14 +1,19 @@
-import type { ChartSpec } from './types'
+import { normalizeHeatmapColors } from '../heatmap-colors/defaults'
+import type {
+  BarChartSpec,
+  ChartSpec,
+  HeatmapChartSpec,
+  SharedChartSpecBody,
+} from './types'
 import { applyUniformChartPadding } from './padding'
 import { cloneSurfaceByTheme } from './surfaceColors'
 
-/** Settings shared across classic / breakdown / hierarchy variants. */
-export type SharedChartSettings = Pick<
-  ChartSpec,
+/** Non-color settings shared across bar variants (and heatmap body fields). */
+export type SharedChartBody = Pick<
+  SharedChartSpecBody,
   | 'chartPadding'
   | 'containerCornerRadius'
   | 'typography'
-  | 'colors'
   | 'geometry'
   | 'labels'
   | 'axes'
@@ -20,25 +25,20 @@ export type SharedChartSettings = Pick<
   | 'renderer'
 >
 
-export function pickSharedChartSettings(spec: ChartSpec): SharedChartSettings {
+/** Settings shared across classic / breakdown / hierarchy bar variants. */
+export type SharedBarChartSettings = SharedChartBody & {
+  colors: BarChartSpec['colors']
+}
+
+export type SharedHeatmapChartSettings = SharedChartBody & {
+  colors: HeatmapChartSpec['colors']
+}
+
+function pickSharedBody(spec: ChartSpec): SharedChartBody {
   return {
     chartPadding: spec.chartPadding,
     containerCornerRadius: spec.containerCornerRadius,
     typography: { ...spec.typography },
-    colors: {
-      surfaceByTheme: cloneSurfaceByTheme(spec.colors.surfaceByTheme),
-      visualization: {
-        ...spec.colors.visualization,
-        base: { ...spec.colors.visualization.base },
-        lightMode: { ...spec.colors.visualization.lightMode },
-        darkMode: { ...spec.colors.visualization.darkMode },
-        distanceWeights: { ...spec.colors.visualization.distanceWeights },
-        variation: { ...spec.colors.visualization.variation },
-        assignments: spec.colors.visualization.assignments
-          ? { ...spec.colors.visualization.assignments }
-          : {},
-      },
-    },
     geometry: { ...spec.geometry },
     labels: {
       ...spec.labels,
@@ -66,24 +66,10 @@ export function pickSharedChartSettings(spec: ChartSpec): SharedChartSettings {
   }
 }
 
-export function applySharedChartSettings(spec: ChartSpec, shared: SharedChartSettings): void {
+function applySharedBody(spec: ChartSpec, shared: SharedChartBody): void {
   spec.chartPadding = shared.chartPadding
   spec.containerCornerRadius = shared.containerCornerRadius
   spec.typography = { ...shared.typography }
-  spec.colors = {
-    surfaceByTheme: cloneSurfaceByTheme(shared.colors.surfaceByTheme),
-    visualization: {
-      ...shared.colors.visualization,
-      base: { ...shared.colors.visualization.base },
-      lightMode: { ...shared.colors.visualization.lightMode },
-      darkMode: { ...shared.colors.visualization.darkMode },
-      distanceWeights: { ...shared.colors.visualization.distanceWeights },
-      variation: { ...shared.colors.visualization.variation },
-      assignments: shared.colors.visualization.assignments
-        ? { ...shared.colors.visualization.assignments }
-        : {},
-    },
-  }
   spec.geometry = { ...shared.geometry }
   spec.labels = {
     ...shared.labels,
@@ -95,7 +81,7 @@ export function applySharedChartSettings(spec: ChartSpec, shared: SharedChartSet
   }
   spec.grid = { ...shared.grid, dash: [...shared.grid.dash] }
   spec.legend = { ...shared.legend }
-  spec.tooltip = { ...shared.tooltip }
+  spec.tooltip = { ...spec.tooltip }
   spec.interaction = { ...shared.interaction }
   spec.animation = {
     ...shared.animation,
@@ -106,6 +92,79 @@ export function applySharedChartSettings(spec: ChartSpec, shared: SharedChartSet
       number,
     ],
   }
-  spec.renderer = { ...shared.renderer }
+  spec.renderer = { ...spec.renderer }
   applyUniformChartPadding(spec, spec.chartPadding)
+}
+
+export function pickSharedChartSettings(spec: BarChartSpec): SharedBarChartSettings {
+  return {
+    ...pickSharedBody(spec),
+    colors: {
+      surfaceByTheme: cloneSurfaceByTheme(spec.colors.surfaceByTheme),
+      encoding: spec.colors.encoding,
+      heatmap: normalizeHeatmapColors(spec.colors.heatmap),
+      visualization: {
+        ...spec.colors.visualization,
+        base: { ...spec.colors.visualization.base },
+        lightMode: { ...spec.colors.visualization.lightMode },
+        darkMode: { ...spec.colors.visualization.darkMode },
+        distanceWeights: { ...spec.colors.visualization.distanceWeights },
+        variation: { ...spec.colors.visualization.variation },
+        assignments: spec.colors.visualization.assignments
+          ? { ...spec.colors.visualization.assignments }
+          : {},
+        accessibility: spec.colors.visualization.accessibility
+          ? { ...spec.colors.visualization.accessibility }
+          : undefined,
+      },
+    },
+  }
+}
+
+export function applySharedChartSettings(spec: BarChartSpec, shared: SharedBarChartSettings): void {
+  applySharedBody(spec, shared)
+  spec.colors = {
+    surfaceByTheme: cloneSurfaceByTheme(shared.colors.surfaceByTheme),
+    encoding: shared.colors.encoding,
+    heatmap: normalizeHeatmapColors(shared.colors.heatmap),
+    visualization: {
+      ...shared.colors.visualization,
+      base: { ...shared.colors.visualization.base },
+      lightMode: { ...shared.colors.visualization.lightMode },
+      darkMode: { ...shared.colors.visualization.darkMode },
+      distanceWeights: { ...shared.colors.visualization.distanceWeights },
+      variation: { ...shared.colors.visualization.variation },
+      assignments: shared.colors.visualization.assignments
+        ? { ...shared.colors.visualization.assignments }
+        : {},
+      accessibility: shared.colors.visualization.accessibility
+        ? { ...shared.colors.visualization.accessibility }
+        : undefined,
+    },
+  }
+}
+
+export function pickSharedHeatmapSettings(spec: HeatmapChartSpec): SharedHeatmapChartSettings {
+  return {
+    ...pickSharedBody(spec),
+    colors: {
+      surfaceByTheme: cloneSurfaceByTheme(spec.colors.surfaceByTheme),
+      heatmap: normalizeHeatmapColors(spec.colors.heatmap),
+    },
+  }
+}
+
+export function applySharedHeatmapSettings(
+  spec: HeatmapChartSpec,
+  shared: SharedHeatmapChartSettings,
+): void {
+  applySharedBody(spec, shared)
+  spec.colors = {
+    surfaceByTheme: cloneSurfaceByTheme(shared.colors.surfaceByTheme),
+    heatmap: normalizeHeatmapColors(shared.colors.heatmap),
+  }
+}
+
+export function applySharedBodyToSpec(spec: ChartSpec, body: SharedChartBody): void {
+  applySharedBody(spec, body)
 }

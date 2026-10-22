@@ -8,10 +8,10 @@ export const darkChartSurface: ChartSurfaceColors = {
   grid: 'rgba(255,255,255,0.08)',
   hover: 'rgba(255,255,255,0.15)',
   selected: 'rgba(255,255,255,0.25)',
-  tooltip: '#2a2a2a',
+  tooltip: '#000000',
   border: 'rgba(255,255,255,0.12)',
-  barHoverBorder: 'rgba(255,255,255,0.45)',
-  barSelectedBorder: 'rgba(255,255,255,0.75)',
+  barHoverBorder: 'rgba(255,255,255,0.4)',
+  barSelectedBorder: '#ffffff',
 }
 
 export const lightChartSurface: ChartSurfaceColors = {

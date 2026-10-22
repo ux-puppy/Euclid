@@ -1,15 +1,26 @@
 import { scaleLinear } from 'd3-scale'
+import { labelOnFill } from '../../accessibility/contrast'
 import { resolveSurfaceForTheme } from '../../chart-spec/surfaceColors'
-import type { ChartSpec } from '../../chart-spec/types'
+import type { BarChartSpec } from '../../chart-spec/types'
+import { resolveCartesianTabularData } from '../../data/unifiedData'
 import { barLabelFields, formatValue } from '../../data/format'
 import { resolveVisualizationColors } from '../../visualization-colors/resolve'
 import type { ChartTheme } from '../../visualization-colors/types'
 import type { AxisScene, SceneGraph } from './types'
 import { barStrokeForState } from './barInteractionStyle'
 import { isValueLerpActive, resolveBarWidth, type ValueAnimState } from './valueAnim'
+import { attachBarValueColorLegend, barFillForValue } from './valueBarColors'
+import { cartesianValueExtent } from './cartesianValueExtent'
+import { layoutStackedSegments } from './stackedSegmentLayout'
+import { isBarValueColorEncoding } from '../../chart-spec/types'
+
+/** Classic grouped: one bar per tabular series row (totals), not series segments under a category. */
+function classicGroupedSeriesRows(spec: BarChartSpec, barLayout: 'grouped' | 'stacked'): boolean {
+  return spec.variant === 'classic' && barLayout === 'grouped'
+}
 
 export function computeCartesianLayout(
-  spec: ChartSpec,
+  spec: BarChartSpec,
   theme: ChartTheme,
   hoverId: string | null,
   selectId: string | null,
@@ -20,9 +31,13 @@ export function computeCartesianLayout(
     throw new Error('Invalid cartesian layout input')
   }
 
-  const { layout, data, labels, axes, grid, legend, geometry } = spec
+  const { layout, labels, axes, grid, legend, geometry } = spec
+  const data = resolveCartesianTabularData(spec)
   const surface = resolveSurfaceForTheme(spec.colors, theme)
-  const viz = resolveVisualizationColors(spec.colors.visualization, spec, theme)
+  const valueColors = isBarValueColorEncoding(spec.colors)
+  const viz = valueColors
+    ? null
+    : resolveVisualizationColors(spec.colors.visualization, spec, theme)
   const { width, height, padding, barLayout } = layout
   const plotW = width - padding.left - padding.right
   const legendBottomReserve =
@@ -32,27 +47,35 @@ export function computeCartesianLayout(
 
   const barThickness = geometry.barThickness
   const barGap = geometry.barGap
+  const stackGap = geometry.stackGap ?? 0
   const groupGap = geometry.groupGap
   const seriesCount = data.series.length
+  const seriesAsRows = classicGroupedSeriesRows(spec, barLayout)
 
   const groupedBlockHeight =
     barLayout === 'grouped'
-      ? barThickness * seriesCount + barGap * Math.max(0, seriesCount - 1)
+      ? seriesAsRows
+        ? barThickness
+        : barThickness * seriesCount + barGap * Math.max(0, seriesCount - 1)
       : barThickness
 
-  const categoryCount = data.categories.length
+  const categoryCount = seriesAsRows ? data.series.length : data.categories.length
+  const stackedCategoryTitleExtra =
+    barLayout === 'stacked' && categoryCount > 1 ? 13 + 4 : 0
+  const stackedTitleBand = stackedCategoryTitleExtra * categoryCount
   const totalCategoriesHeight =
-    groupedBlockHeight * categoryCount + groupGap * Math.max(0, categoryCount - 1)
+    groupedBlockHeight * categoryCount +
+    groupGap * Math.max(0, categoryCount - 1) +
+    stackedTitleBand
 
   const plotH = autoHeight
     ? totalCategoriesHeight
     : height - padding.top - padding.bottom - legendBottomReserve
 
-  const allValues = data.series.flatMap((s) => s.values)
-  const minV = Math.min(0, ...allValues)
-  const maxV = Math.max(...allValues, 0.01)
+  const [minV, maxV] = cartesianValueExtent(data, barLayout)
 
-  const valueScale = scaleLinear().domain([minV, maxV]).nice().range([0, plotW])
+  // Exact data domain so the largest bar total reaches full plot width (no `.nice()` padding).
+  const valueScale = scaleLinear().domain([minV, maxV]).range([0, plotW])
 
   const sceneHeight = autoHeight
     ? padding.top + totalCategoriesHeight + axisBand + legendBottomReserve + padding.bottom
@@ -63,6 +86,8 @@ export function computeCartesianLayout(
     height: sceneHeight,
     background: surface.background,
     barRows: [],
+    heatmapCells: [],
+    heatmapColorLegend: null,
     groupTitles: [],
     axes: [],
     gridLines: [],
@@ -112,41 +137,46 @@ export function computeCartesianLayout(
   let yCursor =
     padding.top + (autoHeight ? 0 : Math.max(0, (plotH - totalCategoriesHeight) / 2))
 
-  data.categories.forEach((cat, ci) => {
-    const blockTop = yCursor
+  const showStackedCategoryTitles =
+    barLayout === 'stacked' && data.categories.length > 1
 
-    data.series.forEach((series, si) => {
-      const raw = series.values[ci] ?? 0
-      let drawValue = raw
-      if (barLayout === 'stacked') {
-        drawValue = data.series.slice(0, si + 1).reduce((s, ser) => s + (ser.values[ci] ?? 0), 0)
-      }
-      const v0 =
-        barLayout === 'stacked' && si > 0
-          ? data.series.slice(0, si).reduce((s, ser) => s + (ser.values[ci] ?? 0), 0)
-          : 0
+  const rowEntries = seriesAsRows
+    ? data.series.map((series, si) => ({
+        cat: series.name,
+        ci: 0,
+        series,
+        si,
+      }))
+    : data.categories.map((cat, ci) => ({ cat, ci, series: null as null, si: -1 }))
 
-      let y: number
-      let bh: number
-      if (barLayout === 'grouped') {
-        y = blockTop + si * (barThickness + barGap)
-        bh = barThickness
-      } else {
-        y = blockTop
-        bh = barThickness
-      }
+  rowEntries.forEach(({ cat, ci, series: rowSeries, si: rowSi }) => {
+    let blockTop = yCursor
+    if (showStackedCategoryTitles) {
+      const titleSize = 13
+      scene.groupTitles.push({
+        kind: 'groupTitle',
+        text: cat,
+        x: padding.left,
+        y: blockTop,
+        fontSize: titleSize,
+      })
+      blockTop += titleSize + 4
+    }
 
-      const x0 = valueScale(v0)!
-      const x1 = valueScale(drawValue)!
-      const bw = Math.abs(x1 - x0)
-      const x = Math.min(x0, x1) + padding.left
+    const loadP = isValueLerpActive(valueAnim) ? 1 : animProgress
 
+    const pushBarSegment = (
+      series: (typeof data.series)[number],
+      si: number,
+      raw: number,
+      x: number,
+      animatedBw: number,
+      y: number,
+      bh: number,
+    ) => {
       const id = `${series.id}-${ci}`
       const state = selectId === id ? 'selected' : hoverId === id ? 'hover' : 'default'
-      const fill = viz.colorForSeriesIndex(si)
-
-      const loadP = isValueLerpActive(valueAnim) ? 1 : animProgress
-      const animatedBw = resolveBarWidth(id, bw, loadP, valueAnim)
+      const fill = valueColors ? barFillForValue(spec, raw, theme) : viz!.colorForSeriesIndex(si)
       const labelFields = labels.show
         ? barLabelFields(labels.template, raw, series.name, labels.valueFormat)
         : null
@@ -166,6 +196,7 @@ export function computeCartesianLayout(
         labelX: x + labels.insetX,
         labelValueText: labelFields?.valueText,
         labelNameText: labelFields?.nameText,
+        labelColor: valueColors ? labelOnFill(fill) : undefined,
         state,
         progress: animProgress,
       })
@@ -179,23 +210,78 @@ export function computeCartesianLayout(
         height: bh,
         meta: { category: cat, series: series.name, value: raw },
       })
-    })
+    }
 
-    yCursor += groupedBlockHeight + groupGap
+    if (barLayout === 'stacked') {
+      const y = blockTop
+      const bh = barThickness
+      const segments = layoutStackedSegments(
+        data,
+        ci,
+        valueScale,
+        padding.left,
+        stackGap,
+        loadP,
+        valueAnim,
+      )
+      for (const seg of segments) {
+        const series = data.series[seg.seriesIndex]!
+        pushBarSegment(series, seg.seriesIndex, seg.raw, seg.x, seg.width, y, bh)
+      }
+    } else if (seriesAsRows && rowSeries) {
+      const series = rowSeries
+      const si = rowSi
+      const raw = series.values[ci] ?? 0
+      const y = blockTop
+      const bh = barThickness
+      const x0 = valueScale(0)!
+      const x1 = valueScale(raw)!
+      const bw = Math.abs(x1 - x0)
+      const x = Math.min(x0, x1) + padding.left
+      const animatedBw = resolveBarWidth(`${series.id}-${ci}`, bw, loadP, valueAnim)
+      pushBarSegment(series, si, raw, x, animatedBw, y, bh)
+    } else {
+      data.series.forEach((series, si) => {
+        const raw = series.values[ci] ?? 0
+        const y = blockTop + si * (barThickness + barGap)
+        const bh = barThickness
+        const x0 = valueScale(0)!
+        const x1 = valueScale(raw)!
+        const bw = Math.abs(x1 - x0)
+        const x = Math.min(x0, x1) + padding.left
+        const id = `${series.id}-${ci}`
+        const animatedBw = resolveBarWidth(id, bw, loadP, valueAnim)
+        pushBarSegment(series, si, raw, x, animatedBw, y, bh)
+      })
+    }
+
+    yCursor += groupedBlockHeight + stackedCategoryTitleExtra + groupGap
   })
 
   if (legend.show) {
     const startY = padding.top + plotH + 10
-    data.series.forEach((s, i) => {
-      scene.legendItems.push({
-        kind: 'legendItem',
-        id: s.id,
-        x: padding.left + i * 90,
-        y: startY,
-        color: viz.colorForSeriesIndex(i),
-        label: s.name,
+    if (valueColors) {
+      const legendW = Math.min(plotW, 280)
+      attachBarValueColorLegend(
+        scene,
+        spec,
+        theme,
+        padding.left + (plotW - legendW) / 2,
+        startY,
+        legendW,
+      )
+    } else {
+      data.series.forEach((s, i) => {
+        scene.legendItems.push({
+          kind: 'legendItem',
+          id: s.id,
+          x: padding.left + i * 90,
+          y: startY,
+          color: viz!.colorForSeriesIndex(i),
+          label: s.name,
+        })
       })
-    })
+    }
   }
 
   return scene

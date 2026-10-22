@@ -10,6 +10,7 @@ export function generateTabularData(
   pattern: TabularPatternId,
   seed: number,
   params: { categoryCount: number; seriesCount: number },
+  seriesPattern: TabularPatternId = pattern,
 ): TabularData {
   const categories = generateCategories(params.categoryCount, seed)
   const names = generateSeriesNames(params.seriesCount, seed)
@@ -18,6 +19,7 @@ export function generateTabularData(
     seed,
     params.categoryCount,
     params.seriesCount,
+    seriesPattern,
   )
   return {
     shape: 'tabular',
@@ -29,6 +31,7 @@ export function generateTabularData(
     })),
     provenance: {
       pattern,
+      seriesPattern,
       seed,
       params: {
         categoryCount: params.categoryCount,

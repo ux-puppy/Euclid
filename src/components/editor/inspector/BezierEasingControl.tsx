@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import { cn } from '../../../lib/utils'
 import type { Bezier4 } from '../../../chart-spec/easingPresets'
 import { controlSurface } from '../../../lib/controlSurface'
+import { inspectorFieldGap } from './inspectorStyles'
 import { NumberInput } from '../../ui/number-input'
 
 type BezierEasingControlProps = {
@@ -101,7 +102,7 @@ export function BezierEasingControl({ value, onChange }: BezierEasingControlProp
   const labels = ['x1', 'y1', 'x2', 'y2'] as const
 
   return (
-    <div className={cn('w-full min-w-0 space-y-2 rounded-lg px-2 py-2', controlSurface)}>
+    <div className={cn('w-full min-w-0 rounded-lg px-2 py-2', inspectorFieldGap, controlSurface)}>
       <div ref={wrapRef} className="w-full aspect-square">
         <canvas
           ref={canvasRef}

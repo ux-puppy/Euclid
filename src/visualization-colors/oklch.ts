@@ -14,6 +14,16 @@ export function normalizeHue(h: number): number {
   return ((h % 360) + 360) % 360
 }
 
+export function oklchFromHex(hex: string): OklchTuple | null {
+  const parsed = toOklch(hex)
+  if (parsed?.l == null || Number.isNaN(parsed.l)) return null
+  return {
+    l: parsed.l,
+    c: parsed.c ?? 0,
+    h: normalizeHue(parsed.h ?? 0),
+  }
+}
+
 export function hueFromHex(hex: string): number | null {
   const parsed = toOklch(hex)
   if (!parsed || parsed.h == null || Number.isNaN(parsed.h)) return null
@@ -39,7 +49,7 @@ export function oklchColorAt(l: number, c: number, h: number): OklchTuple {
 
 export type OklchTuple = { l: number; c: number; h: number }
 
-function hueDeltaDegrees(a: number, b: number): number {
+export function hueDeltaDegrees(a: number, b: number): number {
   const d = Math.abs(a - b) % 360
   return d > 180 ? 360 - d : d
 }

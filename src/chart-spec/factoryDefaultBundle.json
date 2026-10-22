@@ -1,0 +1,2261 @@
+{
+  "bundle": {
+    "version": 3,
+    "selectedChart": "classic",
+    "specsByVariant": {
+      "classic": {
+        "schemaVersion": 2,
+        "chartPadding": 16,
+        "containerCornerRadius": 0,
+        "typography": {
+          "fontFamily": "DM Sans",
+          "baseFontSize": 14
+        },
+        "geometry": {
+          "barThickness": 36,
+          "barGap": 4,
+          "stackGap": 2,
+          "groupGap": 4,
+          "cornerRadius": 6,
+          "opacity": 1,
+          "borderWidth": 0
+        },
+        "labels": {
+          "show": false,
+          "position": "inside",
+          "template": "{value} {label}",
+          "insetX": 9,
+          "insetY": 1,
+          "valueLabelGap": 0,
+          "valueColumnWidth": 31,
+          "labelOverflow": "fade",
+          "valueFontFamily": "DM Mono",
+          "valueFormat": {
+            "style": "number",
+            "decimals": 0,
+            "prefix": "",
+            "suffix": ""
+          }
+        },
+        "axes": {
+          "x": {
+            "show": false,
+            "label": "",
+            "tickCount": 3,
+            "fontSize": 11
+          },
+          "y": {
+            "show": false,
+            "label": "",
+            "tickCount": 3,
+            "fontSize": 11
+          }
+        },
+        "grid": {
+          "show": false,
+          "color": "rgba(255,255,255,0.08)",
+          "opacity": 1,
+          "strokeWidth": 1,
+          "dash": [
+            4,
+            4
+          ]
+        },
+        "legend": {
+          "show": false,
+          "position": "bottom",
+          "fontSize": 11
+        },
+        "tooltip": {
+          "show": false,
+          "background": "#000000",
+          "fontSize": 12
+        },
+        "interaction": {
+          "hover": false,
+          "select": false,
+          "focus": false
+        },
+        "animation": {
+          "enabled": false,
+          "duration": 900,
+          "delay": 0,
+          "easing": "ease-out",
+          "customBezier": [
+            0,
+            0,
+            0.6,
+            1
+          ],
+          "stagger": 40,
+          "direction": "left-right",
+          "trigger": "load"
+        },
+        "renderer": {
+          "devicePixelRatio": "auto",
+          "antialias": true
+        },
+        "chartType": "bar",
+        "variant": "classic",
+        "colors": {
+          "surfaceByTheme": {
+            "light": {
+              "background": "#ffffff",
+              "text": "rgba(0,0,0,0.5)",
+              "textSecondary": "rgba(0,0,0,0.85)",
+              "axis": "rgba(0,0,0,0.45)",
+              "grid": "rgba(0,0,0,0.08)",
+              "hover": "rgba(0,0,0,0.06)",
+              "selected": "rgba(0,0,0,0.12)",
+              "tooltip": "#ffffff",
+              "border": "rgba(0,0,0,0.1)",
+              "barHoverBorder": "rgba(0,0,0,0.35)",
+              "barSelectedBorder": "rgba(0,0,0,0.55)"
+            },
+            "dark": {
+              "background": "#1a1a1a",
+              "text": "rgba(255,255,255,0.5)",
+              "textSecondary": "rgba(255,255,255,0.9)",
+              "axis": "rgba(255,255,255,0.4)",
+              "grid": "rgba(255,255,255,0.08)",
+              "hover": "rgba(255,255,255,0.15)",
+              "selected": "rgba(255,255,255,0.25)",
+              "tooltip": "#000000",
+              "border": "rgba(255,255,255,0.12)",
+              "barHoverBorder": "rgba(255,255,255,0.4)",
+              "barSelectedBorder": "#ffffff"
+            }
+          },
+          "encoding": "categorical",
+          "visualization": {
+            "startHue": 205,
+            "base": {
+              "lightnessCorrection": 1,
+              "chromaCorrection": 1
+            },
+            "lightMode": {
+              "lightness": 0.85,
+              "chroma": 0.07
+            },
+            "darkMode": {
+              "lightness": 0.44,
+              "chroma": 0.06
+            },
+            "distanceWeights": {
+              "lightness": 1,
+              "chroma": 1,
+              "hue": 1
+            },
+            "hueLayout": "even",
+            "paletteRevision": 2,
+            "variation": {
+              "property": "lightness",
+              "step": 0.02,
+              "direction": "lighter",
+              "opacityStep": 0.35,
+              "opacityDirection": "decrease"
+            },
+            "maxBaseColors": 10,
+            "excessColorHandling": {
+              "enabled": false,
+              "activateAfter": 10,
+              "mode": "repeatWithShift",
+              "shiftDegrees": 15,
+              "step": 0.08,
+              "opacityStep": 0
+            },
+            "hierarchyMode": "globalDepth",
+            "assignments": {
+              "classic-s-0": 0,
+              "classic-s-1": 1,
+              "classic-s-2": 2,
+              "classic-s-3": 3,
+              "classic-s-4": 4,
+              "classic-s-5": 5,
+              "classic-s-6": 6,
+              "classic-s-7": 7,
+              "classic-s-8": 8,
+              "classic-s-9": 9
+            },
+            "accessibility": {
+              "minRatioOnBackground": 3,
+              "minRatioOnBarText": 4.5
+            }
+          },
+          "heatmap": {
+            "mode": "sequential",
+            "interpolation": {
+              "scale": "linear",
+              "scaleQuantized": false,
+              "scaleLogBase": 10,
+              "scaleGamma": 1,
+              "scaleSteps": 5,
+              "colorBlend": "oklch"
+            },
+            "lightMode": {
+              "lightness": 0.72,
+              "chroma": 0.12
+            },
+            "darkMode": {
+              "lightness": 0.6,
+              "chroma": 0.09
+            },
+            "useStopAlpha": false,
+            "sequential": {
+              "stops": [
+                {
+                  "position": 0,
+                  "color": "#5A83D3"
+                },
+                {
+                  "position": 0.5,
+                  "color": "#2A2A2A"
+                },
+                {
+                  "position": 1,
+                  "color": "#E87A67"
+                }
+              ]
+            },
+            "divergingZero": "#f8f9fa",
+            "negative": {
+              "stops": [
+                {
+                  "position": 0,
+                  "color": "#1d3557"
+                },
+                {
+                  "position": 0.5,
+                  "color": "#457b9d"
+                },
+                {
+                  "position": 1,
+                  "color": "#a8dadc"
+                }
+              ]
+            },
+            "positive": {
+              "stops": [
+                {
+                  "position": 0,
+                  "color": "#ffe8a3"
+                },
+                {
+                  "position": 0.5,
+                  "color": "#f4a261"
+                },
+                {
+                  "position": 1,
+                  "color": "#e63946"
+                }
+              ]
+            }
+          }
+        },
+        "data": {
+          "shape": "tabular",
+          "categories": [
+            "Share"
+          ],
+          "series": [
+            {
+              "id": "classic-s-0",
+              "name": "Great White Shark",
+              "values": [
+                73.10903680896212
+              ]
+            },
+            {
+              "id": "classic-s-1",
+              "name": "Ostrich",
+              "values": [
+                57.565366903789716
+              ]
+            },
+            {
+              "id": "classic-s-2",
+              "name": "Camel",
+              "values": [
+                98.67678083768946
+              ]
+            },
+            {
+              "id": "classic-s-3",
+              "name": "Atlas Moth",
+              "values": [
+                80.08989065659495
+              ]
+            },
+            {
+              "id": "classic-s-4",
+              "name": "Giraffe",
+              "values": [
+                29.74819449595607
+              ]
+            },
+            {
+              "id": "classic-s-5",
+              "name": "Boa Constrictor",
+              "values": [
+                65.52999454032492
+              ]
+            },
+            {
+              "id": "classic-s-6",
+              "name": "Orca",
+              "values": [
+                39.75856196830562
+              ]
+            },
+            {
+              "id": "classic-s-7",
+              "name": "Clownfish",
+              "values": [
+                75.51371385382429
+              ]
+            },
+            {
+              "id": "classic-s-8",
+              "name": "Moose",
+              "values": [
+                100
+              ]
+            },
+            {
+              "id": "classic-s-9",
+              "name": "Green Sea Turtle",
+              "values": [
+                60.009265347771354
+              ]
+            }
+          ],
+          "composition": {
+            "categories": [
+              "Great White Shark",
+              "Ostrich",
+              "Camel",
+              "Atlas Moth",
+              "Giraffe",
+              "Boa Constrictor",
+              "Orca",
+              "Clownfish",
+              "Moose",
+              "Green Sea Turtle"
+            ],
+            "series": [
+              {
+                "id": "s-0",
+                "name": "Diurnal subspecies",
+                "values": [
+                  73.10903680896212,
+                  57.565366903789716,
+                  98.67678083768946,
+                  80.08989065659495,
+                  29.74819449595607,
+                  65.52999454032492,
+                  39.75856196830562,
+                  75.51371385382429,
+                  100,
+                  60.009265347771354
+                ]
+              },
+              {
+                "id": "s-1",
+                "name": "Seamount form",
+                "values": [
+                  9.305274651910441,
+                  12.709435092171088,
+                  14.973829757717509,
+                  5.215008308953671,
+                  22.78329705141606,
+                  21.49534039842728,
+                  21.316892089491642,
+                  19.476555454363933,
+                  24.22512305081034,
+                  24.411828387571443
+                ]
+              },
+              {
+                "id": "s-2",
+                "name": "Introduced subspecies",
+                "values": [
+                  8.844444462853692,
+                  5.554350430687604,
+                  10.151587707166279,
+                  5.829992836275664,
+                  16.6331492038524,
+                  9.80356628075358,
+                  3.7403267596731222,
+                  7.213319103556288,
+                  7.984574208605748,
+                  3.256579719428028
+                ]
+              },
+              {
+                "id": "s-3",
+                "name": "Melanistic form",
+                "values": [
+                  9.79641644129776,
+                  9.375774034108604,
+                  5.666683033805971,
+                  12.720574223248219,
+                  17.216185748015526,
+                  15.976744237552984,
+                  6.379593392967207,
+                  6.915547759416805,
+                  14.315269352030707,
+                  8.492329053971016
+                ]
+              },
+              {
+                "id": "s-4",
+                "name": "Migratory subspecies",
+                "values": [
+                  12.34523334056534,
+                  17.240595679806432,
+                  20.83604841792589,
+                  21.108185394485393,
+                  16.372538177646767,
+                  11.02677022754157,
+                  12.151237310133292,
+                  14.616005410797811,
+                  20.607515789488556,
+                  5.471686005875022
+                ]
+              },
+              {
+                "id": "s-5",
+                "name": "Littoral subspecies",
+                "values": [
+                  45.0662404203926,
+                  23.14927925161652,
+                  19.233491261413644,
+                  66.73135170525677,
+                  41.00343583625258,
+                  75.65531929377657,
+                  52.683131958658194,
+                  44.16921606674885,
+                  76.86262453010575,
+                  25.776547470578475
+                ]
+              },
+              {
+                "id": "s-6",
+                "name": "Captive-bred line",
+                "values": [
+                  8.714240001209147,
+                  20.84188358829777,
+                  21.500083536095648,
+                  18.288119070860695,
+                  2.841084545987508,
+                  2.6096014129727707,
+                  9.007248760348164,
+                  15.759293266196666,
+                  12.978395484271957,
+                  17.503350383830952
+                ]
+              },
+              {
+                "id": "s-7",
+                "name": "Savanna subspecies",
+                "values": [
+                  20.21635282348464,
+                  11.236646222507126,
+                  16.330119366033234,
+                  17.31903504452626,
+                  9.962170955155075,
+                  9.753630128263495,
+                  19.8106396664136,
+                  16.153600297053693,
+                  18.661693899230606,
+                  17.7489056689711
+                ]
+              },
+              {
+                "id": "s-8",
+                "name": "Lake-resident subspecies",
+                "values": [
+                  34.60734729287756,
+                  83.74102218576895,
+                  98.84353427825636,
+                  88.74113609602296,
+                  24.608209419634665,
+                  98.87778809675869,
+                  80.82638521155758,
+                  43.45947654090892,
+                  93.47751475105255,
+                  33.135526823915065
+                ]
+              },
+              {
+                "id": "s-9",
+                "name": "Eastern subspecies",
+                "values": [
+                  4.556757606439979,
+                  18.45550696229687,
+                  27.949203413495244,
+                  9.505156683622475,
+                  14.881124825427424,
+                  11.706818317308375,
+                  18.119609195170263,
+                  21.252240495155313,
+                  23.113145130528736,
+                  16.727155195031926
+                ]
+              }
+            ]
+          },
+          "provenance": {
+            "pattern": "random",
+            "seriesPattern": "sparse",
+            "seed": 42,
+            "params": {
+              "categoryCount": 10,
+              "seriesCount": 10
+            }
+          }
+        },
+        "layout": {
+          "mode": "cartesian",
+          "width": 640,
+          "height": 400,
+          "padding": {
+            "top": 16,
+            "right": 16,
+            "bottom": 16,
+            "left": 16
+          },
+          "orientation": "horizontal",
+          "barLayout": "grouped"
+        }
+      },
+      "breakdown": {
+        "schemaVersion": 2,
+        "chartPadding": 16,
+        "containerCornerRadius": 0,
+        "typography": {
+          "fontFamily": "DM Sans",
+          "baseFontSize": 14
+        },
+        "geometry": {
+          "barThickness": 36,
+          "barGap": 4,
+          "stackGap": 2,
+          "groupGap": 4,
+          "cornerRadius": 6,
+          "opacity": 1,
+          "borderWidth": 0
+        },
+        "labels": {
+          "show": false,
+          "position": "inside",
+          "template": "{value} {label}",
+          "insetX": 9,
+          "insetY": 1,
+          "valueLabelGap": 0,
+          "valueColumnWidth": 31,
+          "labelOverflow": "fade",
+          "valueFontFamily": "DM Mono",
+          "valueFormat": {
+            "style": "number",
+            "decimals": 0,
+            "prefix": "",
+            "suffix": ""
+          }
+        },
+        "axes": {
+          "x": {
+            "show": false,
+            "label": "",
+            "tickCount": 5,
+            "fontSize": 11
+          },
+          "y": {
+            "show": false,
+            "label": "",
+            "tickCount": 5,
+            "fontSize": 11
+          }
+        },
+        "grid": {
+          "show": false,
+          "color": "rgba(255,255,255,0.08)",
+          "opacity": 1,
+          "strokeWidth": 1,
+          "dash": [
+            4,
+            4
+          ]
+        },
+        "legend": {
+          "show": false,
+          "position": "bottom",
+          "fontSize": 11
+        },
+        "tooltip": {
+          "show": false,
+          "background": "#000000",
+          "fontSize": 12
+        },
+        "interaction": {
+          "hover": false,
+          "select": false,
+          "focus": false
+        },
+        "animation": {
+          "enabled": false,
+          "duration": 900,
+          "delay": 0,
+          "easing": "ease-out",
+          "customBezier": [
+            0,
+            0,
+            0.6,
+            1
+          ],
+          "stagger": 40,
+          "direction": "left-right",
+          "trigger": "load"
+        },
+        "renderer": {
+          "devicePixelRatio": "auto",
+          "antialias": true
+        },
+        "chartType": "bar",
+        "variant": "breakdown",
+        "colors": {
+          "surfaceByTheme": {
+            "light": {
+              "background": "#ffffff",
+              "text": "rgba(0,0,0,0.5)",
+              "textSecondary": "rgba(0,0,0,0.85)",
+              "axis": "rgba(0,0,0,0.45)",
+              "grid": "rgba(0,0,0,0.08)",
+              "hover": "rgba(0,0,0,0.06)",
+              "selected": "rgba(0,0,0,0.12)",
+              "tooltip": "#ffffff",
+              "border": "rgba(0,0,0,0.1)",
+              "barHoverBorder": "rgba(0,0,0,0.35)",
+              "barSelectedBorder": "rgba(0,0,0,0.55)"
+            },
+            "dark": {
+              "background": "#1a1a1a",
+              "text": "rgba(255,255,255,0.5)",
+              "textSecondary": "rgba(255,255,255,0.9)",
+              "axis": "rgba(255,255,255,0.4)",
+              "grid": "rgba(255,255,255,0.08)",
+              "hover": "rgba(255,255,255,0.15)",
+              "selected": "rgba(255,255,255,0.25)",
+              "tooltip": "#000000",
+              "border": "rgba(255,255,255,0.12)",
+              "barHoverBorder": "rgba(255,255,255,0.4)",
+              "barSelectedBorder": "#ffffff"
+            }
+          },
+          "encoding": "categorical",
+          "visualization": {
+            "startHue": 205,
+            "base": {
+              "lightnessCorrection": 1,
+              "chromaCorrection": 1
+            },
+            "lightMode": {
+              "lightness": 0.85,
+              "chroma": 0.07
+            },
+            "darkMode": {
+              "lightness": 0.44,
+              "chroma": 0.06
+            },
+            "distanceWeights": {
+              "lightness": 1,
+              "chroma": 1,
+              "hue": 1
+            },
+            "hueLayout": "even",
+            "paletteRevision": 2,
+            "variation": {
+              "property": "lightness",
+              "step": 0.02,
+              "direction": "lighter",
+              "opacityStep": 0.35,
+              "opacityDirection": "decrease"
+            },
+            "maxBaseColors": 10,
+            "excessColorHandling": {
+              "enabled": false,
+              "activateAfter": 10,
+              "mode": "repeatWithShift",
+              "shiftDegrees": 15,
+              "step": 0.08,
+              "opacityStep": 0
+            },
+            "hierarchyMode": "globalDepth",
+            "assignments": {
+              "s-0": 0,
+              "s-1": 1,
+              "s-2": 2,
+              "s-3": 3,
+              "s-4": 4,
+              "s-5": 5,
+              "s-6": 6,
+              "s-7": 7,
+              "s-8": 8,
+              "s-9": 9
+            },
+            "accessibility": {
+              "minRatioOnBackground": 3,
+              "minRatioOnBarText": 4.5
+            }
+          },
+          "heatmap": {
+            "mode": "sequential",
+            "interpolation": {
+              "scale": "linear",
+              "scaleQuantized": false,
+              "scaleLogBase": 10,
+              "scaleGamma": 1,
+              "scaleSteps": 5,
+              "colorBlend": "oklch"
+            },
+            "lightMode": {
+              "lightness": 0.72,
+              "chroma": 0.12
+            },
+            "darkMode": {
+              "lightness": 0.6,
+              "chroma": 0.09
+            },
+            "useStopAlpha": false,
+            "sequential": {
+              "stops": [
+                {
+                  "position": 0,
+                  "color": "#5A83D3"
+                },
+                {
+                  "position": 0.5,
+                  "color": "#2A2A2A"
+                },
+                {
+                  "position": 1,
+                  "color": "#E87A67"
+                }
+              ]
+            },
+            "divergingZero": "#f8f9fa",
+            "negative": {
+              "stops": [
+                {
+                  "position": 0,
+                  "color": "#1d3557"
+                },
+                {
+                  "position": 0.5,
+                  "color": "#457b9d"
+                },
+                {
+                  "position": 1,
+                  "color": "#a8dadc"
+                }
+              ]
+            },
+            "positive": {
+              "stops": [
+                {
+                  "position": 0,
+                  "color": "#ffe8a3"
+                },
+                {
+                  "position": 0.5,
+                  "color": "#f4a261"
+                },
+                {
+                  "position": 1,
+                  "color": "#e63946"
+                }
+              ]
+            }
+          }
+        },
+        "data": {
+          "shape": "tabular",
+          "categories": [
+            "Great White Shark",
+            "Ostrich",
+            "Camel",
+            "Atlas Moth",
+            "Giraffe",
+            "Boa Constrictor",
+            "Orca",
+            "Clownfish",
+            "Moose",
+            "Green Sea Turtle"
+          ],
+          "series": [
+            {
+              "id": "s-0",
+              "name": "Diurnal subspecies",
+              "values": [
+                73.10903680896212,
+                57.565366903789716,
+                98.67678083768946,
+                80.08989065659495,
+                29.74819449595607,
+                65.52999454032492,
+                39.75856196830562,
+                75.51371385382429,
+                100,
+                60.009265347771354
+              ]
+            },
+            {
+              "id": "s-1",
+              "name": "Seamount form",
+              "values": [
+                9.305274651910441,
+                12.709435092171088,
+                14.973829757717509,
+                5.215008308953671,
+                22.78329705141606,
+                21.49534039842728,
+                21.316892089491642,
+                19.476555454363933,
+                24.22512305081034,
+                24.411828387571443
+              ]
+            },
+            {
+              "id": "s-2",
+              "name": "Introduced subspecies",
+              "values": [
+                8.844444462853692,
+                5.554350430687604,
+                10.151587707166279,
+                5.829992836275664,
+                16.6331492038524,
+                9.80356628075358,
+                3.7403267596731222,
+                7.213319103556288,
+                7.984574208605748,
+                3.256579719428028
+              ]
+            },
+            {
+              "id": "s-3",
+              "name": "Melanistic form",
+              "values": [
+                9.79641644129776,
+                9.375774034108604,
+                5.666683033805971,
+                12.720574223248219,
+                17.216185748015526,
+                15.976744237552984,
+                6.379593392967207,
+                6.915547759416805,
+                14.315269352030707,
+                8.492329053971016
+              ]
+            },
+            {
+              "id": "s-4",
+              "name": "Migratory subspecies",
+              "values": [
+                12.34523334056534,
+                17.240595679806432,
+                20.83604841792589,
+                21.108185394485393,
+                16.372538177646767,
+                11.02677022754157,
+                12.151237310133292,
+                14.616005410797811,
+                20.607515789488556,
+                5.471686005875022
+              ]
+            },
+            {
+              "id": "s-5",
+              "name": "Littoral subspecies",
+              "values": [
+                45.0662404203926,
+                23.14927925161652,
+                19.233491261413644,
+                66.73135170525677,
+                41.00343583625258,
+                75.65531929377657,
+                52.683131958658194,
+                44.16921606674885,
+                76.86262453010575,
+                25.776547470578475
+              ]
+            },
+            {
+              "id": "s-6",
+              "name": "Captive-bred line",
+              "values": [
+                8.714240001209147,
+                20.84188358829777,
+                21.500083536095648,
+                18.288119070860695,
+                2.841084545987508,
+                2.6096014129727707,
+                9.007248760348164,
+                15.759293266196666,
+                12.978395484271957,
+                17.503350383830952
+              ]
+            },
+            {
+              "id": "s-7",
+              "name": "Savanna subspecies",
+              "values": [
+                20.21635282348464,
+                11.236646222507126,
+                16.330119366033234,
+                17.31903504452626,
+                9.962170955155075,
+                9.753630128263495,
+                19.8106396664136,
+                16.153600297053693,
+                18.661693899230606,
+                17.7489056689711
+              ]
+            },
+            {
+              "id": "s-8",
+              "name": "Lake-resident subspecies",
+              "values": [
+                34.60734729287756,
+                83.74102218576895,
+                98.84353427825636,
+                88.74113609602296,
+                24.608209419634665,
+                98.87778809675869,
+                80.82638521155758,
+                43.45947654090892,
+                93.47751475105255,
+                33.135526823915065
+              ]
+            },
+            {
+              "id": "s-9",
+              "name": "Eastern subspecies",
+              "values": [
+                4.556757606439979,
+                18.45550696229687,
+                27.949203413495244,
+                9.505156683622475,
+                14.881124825427424,
+                11.706818317308375,
+                18.119609195170263,
+                21.252240495155313,
+                23.113145130528736,
+                16.727155195031926
+              ]
+            }
+          ],
+          "provenance": {
+            "pattern": "random",
+            "seriesPattern": "sparse",
+            "seed": 42,
+            "params": {
+              "categoryCount": 10,
+              "seriesCount": 10
+            }
+          }
+        },
+        "layout": {
+          "mode": "list",
+          "width": 520,
+          "height": 400,
+          "padding": {
+            "top": 16,
+            "right": 16,
+            "bottom": 16,
+            "left": 16
+          },
+          "valueScale": "global",
+          "rowGap": 4,
+          "groupGap": 22,
+          "indentPerLevel": 10,
+          "groupTitle": {
+            "show": false,
+            "fontSize": 14
+          },
+          "showChevron": false,
+          "showExpandAllControl": false
+        }
+      },
+      "hierarchy": {
+        "schemaVersion": 2,
+        "chartPadding": 16,
+        "containerCornerRadius": 0,
+        "typography": {
+          "fontFamily": "DM Sans",
+          "baseFontSize": 14
+        },
+        "geometry": {
+          "barThickness": 36,
+          "barGap": 4,
+          "stackGap": 2,
+          "groupGap": 4,
+          "cornerRadius": 6,
+          "opacity": 1,
+          "borderWidth": 0
+        },
+        "labels": {
+          "show": false,
+          "position": "inside",
+          "template": "{value} {label}",
+          "insetX": 9,
+          "insetY": 1,
+          "valueLabelGap": 0,
+          "valueColumnWidth": 31,
+          "labelOverflow": "fade",
+          "valueFontFamily": "DM Mono",
+          "valueFormat": {
+            "style": "number",
+            "decimals": 0,
+            "prefix": "",
+            "suffix": ""
+          }
+        },
+        "axes": {
+          "x": {
+            "show": false,
+            "label": "",
+            "tickCount": 3,
+            "fontSize": 11
+          },
+          "y": {
+            "show": false,
+            "label": "",
+            "tickCount": 3,
+            "fontSize": 11
+          }
+        },
+        "grid": {
+          "show": false,
+          "color": "rgba(255,255,255,0.08)",
+          "opacity": 1,
+          "strokeWidth": 1,
+          "dash": [
+            4,
+            4
+          ]
+        },
+        "legend": {
+          "show": false,
+          "position": "bottom",
+          "fontSize": 11
+        },
+        "tooltip": {
+          "show": false,
+          "background": "#000000",
+          "fontSize": 12
+        },
+        "interaction": {
+          "hover": false,
+          "select": false,
+          "focus": false
+        },
+        "animation": {
+          "enabled": false,
+          "duration": 900,
+          "delay": 0,
+          "easing": "ease-out",
+          "customBezier": [
+            0,
+            0,
+            0.6,
+            1
+          ],
+          "stagger": 40,
+          "direction": "left-right",
+          "trigger": "load"
+        },
+        "renderer": {
+          "devicePixelRatio": "auto",
+          "antialias": true
+        },
+        "chartType": "bar",
+        "variant": "hierarchy",
+        "colors": {
+          "surfaceByTheme": {
+            "light": {
+              "background": "#ffffff",
+              "text": "rgba(0,0,0,0.5)",
+              "textSecondary": "rgba(0,0,0,0.85)",
+              "axis": "rgba(0,0,0,0.45)",
+              "grid": "rgba(0,0,0,0.08)",
+              "hover": "rgba(0,0,0,0.06)",
+              "selected": "rgba(0,0,0,0.12)",
+              "tooltip": "#ffffff",
+              "border": "rgba(0,0,0,0.1)",
+              "barHoverBorder": "rgba(0,0,0,0.35)",
+              "barSelectedBorder": "rgba(0,0,0,0.55)"
+            },
+            "dark": {
+              "background": "#1a1a1a",
+              "text": "rgba(255,255,255,0.5)",
+              "textSecondary": "rgba(255,255,255,0.9)",
+              "axis": "rgba(255,255,255,0.4)",
+              "grid": "rgba(255,255,255,0.08)",
+              "hover": "rgba(255,255,255,0.15)",
+              "selected": "rgba(255,255,255,0.25)",
+              "tooltip": "#000000",
+              "border": "rgba(255,255,255,0.12)",
+              "barHoverBorder": "rgba(255,255,255,0.4)",
+              "barSelectedBorder": "#ffffff"
+            }
+          },
+          "encoding": "categorical",
+          "visualization": {
+            "startHue": 205,
+            "base": {
+              "lightnessCorrection": 1,
+              "chromaCorrection": 1
+            },
+            "lightMode": {
+              "lightness": 0.85,
+              "chroma": 0.07
+            },
+            "darkMode": {
+              "lightness": 0.44,
+              "chroma": 0.06
+            },
+            "distanceWeights": {
+              "lightness": 1,
+              "chroma": 1,
+              "hue": 1
+            },
+            "hueLayout": "even",
+            "paletteRevision": 2,
+            "variation": {
+              "property": "lightness",
+              "step": 0.02,
+              "direction": "lighter",
+              "opacityStep": 0.35,
+              "opacityDirection": "decrease"
+            },
+            "maxBaseColors": 10,
+            "excessColorHandling": {
+              "enabled": false,
+              "activateAfter": 10,
+              "mode": "repeatWithShift",
+              "shiftDegrees": 15,
+              "step": 0.08,
+              "opacityStep": 0
+            },
+            "hierarchyMode": "globalDepth",
+            "assignments": {
+              "c0": 0,
+              "c1": 1,
+              "c2": 2,
+              "c3": 3,
+              "c4": 4,
+              "c5": 5,
+              "c6": 6,
+              "c7": 7,
+              "c8": 8,
+              "c9": 9
+            },
+            "accessibility": {
+              "minRatioOnBackground": 3,
+              "minRatioOnBarText": 4.5
+            }
+          },
+          "heatmap": {
+            "mode": "sequential",
+            "interpolation": {
+              "scale": "linear",
+              "scaleQuantized": false,
+              "scaleLogBase": 10,
+              "scaleGamma": 1,
+              "scaleSteps": 5,
+              "colorBlend": "oklch"
+            },
+            "lightMode": {
+              "lightness": 0.72,
+              "chroma": 0.12
+            },
+            "darkMode": {
+              "lightness": 0.6,
+              "chroma": 0.09
+            },
+            "useStopAlpha": false,
+            "sequential": {
+              "stops": [
+                {
+                  "position": 0,
+                  "color": "#5A83D3"
+                },
+                {
+                  "position": 0.5,
+                  "color": "#2A2A2A"
+                },
+                {
+                  "position": 1,
+                  "color": "#E87A67"
+                }
+              ]
+            },
+            "divergingZero": "#f8f9fa",
+            "negative": {
+              "stops": [
+                {
+                  "position": 0,
+                  "color": "#1d3557"
+                },
+                {
+                  "position": 0.5,
+                  "color": "#457b9d"
+                },
+                {
+                  "position": 1,
+                  "color": "#a8dadc"
+                }
+              ]
+            },
+            "positive": {
+              "stops": [
+                {
+                  "position": 0,
+                  "color": "#ffe8a3"
+                },
+                {
+                  "position": 0.5,
+                  "color": "#f4a261"
+                },
+                {
+                  "position": 1,
+                  "color": "#e63946"
+                }
+              ]
+            }
+          }
+        },
+        "data": {
+          "shape": "tree",
+          "root": {
+            "id": "virtual-root",
+            "label": "All",
+            "value": 279.77076038373247,
+            "children": [
+              {
+                "id": "c0",
+                "label": "Great White Shark",
+                "value": 22.656134384999326,
+                "children": [
+                  {
+                    "id": "c0-s0",
+                    "label": "Diurnal subspecies",
+                    "value": 73.10903680896212
+                  },
+                  {
+                    "id": "c0-s1",
+                    "label": "Seamount form",
+                    "value": 9.305274651910441
+                  },
+                  {
+                    "id": "c0-s2",
+                    "label": "Introduced subspecies",
+                    "value": 8.844444462853692
+                  },
+                  {
+                    "id": "c0-s3",
+                    "label": "Melanistic form",
+                    "value": 9.79641644129776
+                  },
+                  {
+                    "id": "c0-s4",
+                    "label": "Migratory subspecies",
+                    "value": 12.34523334056534
+                  },
+                  {
+                    "id": "c0-s5",
+                    "label": "Littoral subspecies",
+                    "value": 45.0662404203926
+                  },
+                  {
+                    "id": "c0-s6",
+                    "label": "Captive-bred line",
+                    "value": 8.714240001209147
+                  },
+                  {
+                    "id": "c0-s7",
+                    "label": "Savanna subspecies",
+                    "value": 20.21635282348464
+                  },
+                  {
+                    "id": "c0-s8",
+                    "label": "Lake-resident subspecies",
+                    "value": 34.60734729287756
+                  },
+                  {
+                    "id": "c0-s9",
+                    "label": "Eastern subspecies",
+                    "value": 4.556757606439979
+                  }
+                ]
+              },
+              {
+                "id": "c1",
+                "label": "Ostrich",
+                "value": 25.986986035105065,
+                "children": [
+                  {
+                    "id": "c1-s0",
+                    "label": "Diurnal subspecies",
+                    "value": 57.565366903789716
+                  },
+                  {
+                    "id": "c1-s1",
+                    "label": "Seamount form",
+                    "value": 12.709435092171088
+                  },
+                  {
+                    "id": "c1-s2",
+                    "label": "Introduced subspecies",
+                    "value": 5.554350430687604
+                  },
+                  {
+                    "id": "c1-s3",
+                    "label": "Melanistic form",
+                    "value": 9.375774034108604
+                  },
+                  {
+                    "id": "c1-s4",
+                    "label": "Migratory subspecies",
+                    "value": 17.240595679806432
+                  },
+                  {
+                    "id": "c1-s5",
+                    "label": "Littoral subspecies",
+                    "value": 23.14927925161652
+                  },
+                  {
+                    "id": "c1-s6",
+                    "label": "Captive-bred line",
+                    "value": 20.84188358829777
+                  },
+                  {
+                    "id": "c1-s7",
+                    "label": "Savanna subspecies",
+                    "value": 11.236646222507126
+                  },
+                  {
+                    "id": "c1-s8",
+                    "label": "Lake-resident subspecies",
+                    "value": 83.74102218576895
+                  },
+                  {
+                    "id": "c1-s9",
+                    "label": "Eastern subspecies",
+                    "value": 18.45550696229687
+                  }
+                ]
+              },
+              {
+                "id": "c2",
+                "label": "Camel",
+                "value": 33.41613616095993,
+                "children": [
+                  {
+                    "id": "c2-s0",
+                    "label": "Diurnal subspecies",
+                    "value": 98.67678083768946
+                  },
+                  {
+                    "id": "c2-s1",
+                    "label": "Seamount form",
+                    "value": 14.973829757717509
+                  },
+                  {
+                    "id": "c2-s2",
+                    "label": "Introduced subspecies",
+                    "value": 10.151587707166279
+                  },
+                  {
+                    "id": "c2-s3",
+                    "label": "Melanistic form",
+                    "value": 5.666683033805971
+                  },
+                  {
+                    "id": "c2-s4",
+                    "label": "Migratory subspecies",
+                    "value": 20.83604841792589
+                  },
+                  {
+                    "id": "c2-s5",
+                    "label": "Littoral subspecies",
+                    "value": 19.233491261413644
+                  },
+                  {
+                    "id": "c2-s6",
+                    "label": "Captive-bred line",
+                    "value": 21.500083536095648
+                  },
+                  {
+                    "id": "c2-s7",
+                    "label": "Savanna subspecies",
+                    "value": 16.330119366033234
+                  },
+                  {
+                    "id": "c2-s8",
+                    "label": "Lake-resident subspecies",
+                    "value": 98.84353427825636
+                  },
+                  {
+                    "id": "c2-s9",
+                    "label": "Eastern subspecies",
+                    "value": 27.949203413495244
+                  }
+                ]
+              },
+              {
+                "id": "c3",
+                "label": "Atlas Moth",
+                "value": 32.5548450019847,
+                "children": [
+                  {
+                    "id": "c3-s0",
+                    "label": "Diurnal subspecies",
+                    "value": 80.08989065659495
+                  },
+                  {
+                    "id": "c3-s1",
+                    "label": "Seamount form",
+                    "value": 5.215008308953671
+                  },
+                  {
+                    "id": "c3-s2",
+                    "label": "Introduced subspecies",
+                    "value": 5.829992836275664
+                  },
+                  {
+                    "id": "c3-s3",
+                    "label": "Melanistic form",
+                    "value": 12.720574223248219
+                  },
+                  {
+                    "id": "c3-s4",
+                    "label": "Migratory subspecies",
+                    "value": 21.108185394485393
+                  },
+                  {
+                    "id": "c3-s5",
+                    "label": "Littoral subspecies",
+                    "value": 66.73135170525677
+                  },
+                  {
+                    "id": "c3-s6",
+                    "label": "Captive-bred line",
+                    "value": 18.288119070860695
+                  },
+                  {
+                    "id": "c3-s7",
+                    "label": "Savanna subspecies",
+                    "value": 17.31903504452626
+                  },
+                  {
+                    "id": "c3-s8",
+                    "label": "Lake-resident subspecies",
+                    "value": 88.74113609602296
+                  },
+                  {
+                    "id": "c3-s9",
+                    "label": "Eastern subspecies",
+                    "value": 9.505156683622475
+                  }
+                ]
+              },
+              {
+                "id": "c4",
+                "label": "Giraffe",
+                "value": 19.604939025934407,
+                "children": [
+                  {
+                    "id": "c4-s0",
+                    "label": "Diurnal subspecies",
+                    "value": 29.74819449595607
+                  },
+                  {
+                    "id": "c4-s1",
+                    "label": "Seamount form",
+                    "value": 22.78329705141606
+                  },
+                  {
+                    "id": "c4-s2",
+                    "label": "Introduced subspecies",
+                    "value": 16.6331492038524
+                  },
+                  {
+                    "id": "c4-s3",
+                    "label": "Melanistic form",
+                    "value": 17.216185748015526
+                  },
+                  {
+                    "id": "c4-s4",
+                    "label": "Migratory subspecies",
+                    "value": 16.372538177646767
+                  },
+                  {
+                    "id": "c4-s5",
+                    "label": "Littoral subspecies",
+                    "value": 41.00343583625258
+                  },
+                  {
+                    "id": "c4-s6",
+                    "label": "Captive-bred line",
+                    "value": 2.841084545987508
+                  },
+                  {
+                    "id": "c4-s7",
+                    "label": "Savanna subspecies",
+                    "value": 9.962170955155075
+                  },
+                  {
+                    "id": "c4-s8",
+                    "label": "Lake-resident subspecies",
+                    "value": 24.608209419634665
+                  },
+                  {
+                    "id": "c4-s9",
+                    "label": "Eastern subspecies",
+                    "value": 14.881124825427424
+                  }
+                ]
+              },
+              {
+                "id": "c5",
+                "label": "Boa Constrictor",
+                "value": 32.24355729336803,
+                "children": [
+                  {
+                    "id": "c5-s0",
+                    "label": "Diurnal subspecies",
+                    "value": 65.52999454032492
+                  },
+                  {
+                    "id": "c5-s1",
+                    "label": "Seamount form",
+                    "value": 21.49534039842728
+                  },
+                  {
+                    "id": "c5-s2",
+                    "label": "Introduced subspecies",
+                    "value": 9.80356628075358
+                  },
+                  {
+                    "id": "c5-s3",
+                    "label": "Melanistic form",
+                    "value": 15.976744237552984
+                  },
+                  {
+                    "id": "c5-s4",
+                    "label": "Migratory subspecies",
+                    "value": 11.02677022754157
+                  },
+                  {
+                    "id": "c5-s5",
+                    "label": "Littoral subspecies",
+                    "value": 75.65531929377657
+                  },
+                  {
+                    "id": "c5-s6",
+                    "label": "Captive-bred line",
+                    "value": 2.6096014129727707
+                  },
+                  {
+                    "id": "c5-s7",
+                    "label": "Savanna subspecies",
+                    "value": 9.753630128263495
+                  },
+                  {
+                    "id": "c5-s8",
+                    "label": "Lake-resident subspecies",
+                    "value": 98.87778809675869
+                  },
+                  {
+                    "id": "c5-s9",
+                    "label": "Eastern subspecies",
+                    "value": 11.706818317308375
+                  }
+                ]
+              },
+              {
+                "id": "c6",
+                "label": "Orca",
+                "value": 26.379362631271867,
+                "children": [
+                  {
+                    "id": "c6-s0",
+                    "label": "Diurnal subspecies",
+                    "value": 39.75856196830562
+                  },
+                  {
+                    "id": "c6-s1",
+                    "label": "Seamount form",
+                    "value": 21.316892089491642
+                  },
+                  {
+                    "id": "c6-s2",
+                    "label": "Introduced subspecies",
+                    "value": 3.7403267596731222
+                  },
+                  {
+                    "id": "c6-s3",
+                    "label": "Melanistic form",
+                    "value": 6.379593392967207
+                  },
+                  {
+                    "id": "c6-s4",
+                    "label": "Migratory subspecies",
+                    "value": 12.151237310133292
+                  },
+                  {
+                    "id": "c6-s5",
+                    "label": "Littoral subspecies",
+                    "value": 52.683131958658194
+                  },
+                  {
+                    "id": "c6-s6",
+                    "label": "Captive-bred line",
+                    "value": 9.007248760348164
+                  },
+                  {
+                    "id": "c6-s7",
+                    "label": "Savanna subspecies",
+                    "value": 19.8106396664136
+                  },
+                  {
+                    "id": "c6-s8",
+                    "label": "Lake-resident subspecies",
+                    "value": 80.82638521155758
+                  },
+                  {
+                    "id": "c6-s9",
+                    "label": "Eastern subspecies",
+                    "value": 18.119609195170263
+                  }
+                ]
+              },
+              {
+                "id": "c7",
+                "label": "Clownfish",
+                "value": 26.45289682480226,
+                "children": [
+                  {
+                    "id": "c7-s0",
+                    "label": "Diurnal subspecies",
+                    "value": 75.51371385382429
+                  },
+                  {
+                    "id": "c7-s1",
+                    "label": "Seamount form",
+                    "value": 19.476555454363933
+                  },
+                  {
+                    "id": "c7-s2",
+                    "label": "Introduced subspecies",
+                    "value": 7.213319103556288
+                  },
+                  {
+                    "id": "c7-s3",
+                    "label": "Melanistic form",
+                    "value": 6.915547759416805
+                  },
+                  {
+                    "id": "c7-s4",
+                    "label": "Migratory subspecies",
+                    "value": 14.616005410797811
+                  },
+                  {
+                    "id": "c7-s5",
+                    "label": "Littoral subspecies",
+                    "value": 44.16921606674885
+                  },
+                  {
+                    "id": "c7-s6",
+                    "label": "Captive-bred line",
+                    "value": 15.759293266196666
+                  },
+                  {
+                    "id": "c7-s7",
+                    "label": "Savanna subspecies",
+                    "value": 16.153600297053693
+                  },
+                  {
+                    "id": "c7-s8",
+                    "label": "Lake-resident subspecies",
+                    "value": 43.45947654090892
+                  },
+                  {
+                    "id": "c7-s9",
+                    "label": "Eastern subspecies",
+                    "value": 21.252240495155313
+                  }
+                ]
+              },
+              {
+                "id": "c8",
+                "label": "Moose",
+                "value": 39.2225856196125,
+                "children": [
+                  {
+                    "id": "c8-s0",
+                    "label": "Diurnal subspecies",
+                    "value": 100
+                  },
+                  {
+                    "id": "c8-s1",
+                    "label": "Seamount form",
+                    "value": 24.22512305081034
+                  },
+                  {
+                    "id": "c8-s2",
+                    "label": "Introduced subspecies",
+                    "value": 7.984574208605748
+                  },
+                  {
+                    "id": "c8-s3",
+                    "label": "Melanistic form",
+                    "value": 14.315269352030707
+                  },
+                  {
+                    "id": "c8-s4",
+                    "label": "Migratory subspecies",
+                    "value": 20.607515789488556
+                  },
+                  {
+                    "id": "c8-s5",
+                    "label": "Littoral subspecies",
+                    "value": 76.86262453010575
+                  },
+                  {
+                    "id": "c8-s6",
+                    "label": "Captive-bred line",
+                    "value": 12.978395484271957
+                  },
+                  {
+                    "id": "c8-s7",
+                    "label": "Savanna subspecies",
+                    "value": 18.661693899230606
+                  },
+                  {
+                    "id": "c8-s8",
+                    "label": "Lake-resident subspecies",
+                    "value": 93.47751475105255
+                  },
+                  {
+                    "id": "c8-s9",
+                    "label": "Eastern subspecies",
+                    "value": 23.113145130528736
+                  }
+                ]
+              },
+              {
+                "id": "c9",
+                "label": "Green Sea Turtle",
+                "value": 21.25331740569444,
+                "children": [
+                  {
+                    "id": "c9-s0",
+                    "label": "Diurnal subspecies",
+                    "value": 60.009265347771354
+                  },
+                  {
+                    "id": "c9-s1",
+                    "label": "Seamount form",
+                    "value": 24.411828387571443
+                  },
+                  {
+                    "id": "c9-s2",
+                    "label": "Introduced subspecies",
+                    "value": 3.256579719428028
+                  },
+                  {
+                    "id": "c9-s3",
+                    "label": "Melanistic form",
+                    "value": 8.492329053971016
+                  },
+                  {
+                    "id": "c9-s4",
+                    "label": "Migratory subspecies",
+                    "value": 5.471686005875022
+                  },
+                  {
+                    "id": "c9-s5",
+                    "label": "Littoral subspecies",
+                    "value": 25.776547470578475
+                  },
+                  {
+                    "id": "c9-s6",
+                    "label": "Captive-bred line",
+                    "value": 17.503350383830952
+                  },
+                  {
+                    "id": "c9-s7",
+                    "label": "Savanna subspecies",
+                    "value": 17.7489056689711
+                  },
+                  {
+                    "id": "c9-s8",
+                    "label": "Lake-resident subspecies",
+                    "value": 33.135526823915065
+                  },
+                  {
+                    "id": "c9-s9",
+                    "label": "Eastern subspecies",
+                    "value": 16.727155195031926
+                  }
+                ]
+              }
+            ]
+          },
+          "defaultExpandedDepth": 1,
+          "provenance": {
+            "pattern": "random",
+            "seriesPattern": "sparse",
+            "seed": 42,
+            "params": {
+              "categoryCount": 10,
+              "seriesCount": 10,
+              "maxDepth": 2
+            }
+          },
+          "expandedNodeIds": []
+        },
+        "layout": {
+          "mode": "list",
+          "width": 520,
+          "height": 400,
+          "padding": {
+            "top": 16,
+            "right": 16,
+            "bottom": 16,
+            "left": 16
+          },
+          "valueScale": "global",
+          "rowGap": 4,
+          "groupGap": 22,
+          "indentPerLevel": 10,
+          "groupTitle": {
+            "show": false,
+            "fontSize": 14
+          },
+          "showChevron": false,
+          "showExpandAllControl": false
+        }
+      }
+    },
+    "heatmapSpec": {
+      "schemaVersion": 2,
+      "chartPadding": 16,
+      "containerCornerRadius": 0,
+      "typography": {
+        "fontFamily": "DM Sans",
+        "baseFontSize": 14
+      },
+      "geometry": {
+        "barThickness": 36,
+        "barGap": 4,
+        "stackGap": 2,
+        "groupGap": 4,
+        "cornerRadius": 6,
+        "opacity": 1,
+        "borderWidth": 0
+      },
+      "labels": {
+        "show": false,
+        "position": "inside",
+        "template": "{value}",
+        "insetX": 9,
+        "insetY": 1,
+        "valueLabelGap": 0,
+        "valueColumnWidth": 31,
+        "labelOverflow": "fade",
+        "valueFontFamily": "DM Mono",
+        "valueFormat": {
+          "style": "number",
+          "decimals": 1,
+          "prefix": "",
+          "suffix": ""
+        }
+      },
+      "axes": {
+        "x": {
+          "show": false,
+          "label": "",
+          "tickCount": 3,
+          "fontSize": 11
+        },
+        "y": {
+          "show": false,
+          "label": "",
+          "tickCount": 3,
+          "fontSize": 11
+        }
+      },
+      "grid": {
+        "show": false,
+        "color": "rgba(255,255,255,0.08)",
+        "opacity": 1,
+        "strokeWidth": 1,
+        "dash": [
+          4,
+          4
+        ]
+      },
+      "legend": {
+        "show": false,
+        "position": "bottom",
+        "fontSize": 11
+      },
+      "tooltip": {
+        "show": false,
+        "background": "#000000",
+        "fontSize": 12
+      },
+      "interaction": {
+        "hover": false,
+        "select": false,
+        "focus": false
+      },
+      "animation": {
+        "enabled": false,
+        "duration": 900,
+        "delay": 0,
+        "easing": "ease-out",
+        "customBezier": [
+          0,
+          0,
+          0.6,
+          1
+        ],
+        "stagger": 40,
+        "direction": "top-bottom",
+        "trigger": "load"
+      },
+      "renderer": {
+        "devicePixelRatio": "auto",
+        "antialias": true
+      },
+      "chartType": "heatmap",
+      "variant": "heatmap",
+      "colors": {
+        "surfaceByTheme": {
+          "light": {
+            "background": "#ffffff",
+            "text": "rgba(0,0,0,0.5)",
+            "textSecondary": "rgba(0,0,0,0.85)",
+            "axis": "rgba(0,0,0,0.45)",
+            "grid": "rgba(0,0,0,0.08)",
+            "hover": "rgba(0,0,0,0.06)",
+            "selected": "rgba(0,0,0,0.12)",
+            "tooltip": "#ffffff",
+            "border": "rgba(0,0,0,0.1)",
+            "barHoverBorder": "rgba(0,0,0,0.35)",
+            "barSelectedBorder": "rgba(0,0,0,0.55)"
+          },
+          "dark": {
+            "background": "#1a1a1a",
+            "text": "rgba(255,255,255,0.5)",
+            "textSecondary": "rgba(255,255,255,0.9)",
+            "axis": "rgba(255,255,255,0.4)",
+            "grid": "rgba(255,255,255,0.08)",
+            "hover": "rgba(255,255,255,0.15)",
+            "selected": "rgba(255,255,255,0.25)",
+            "tooltip": "#000000",
+            "border": "rgba(255,255,255,0.12)",
+            "barHoverBorder": "rgba(255,255,255,0.4)",
+            "barSelectedBorder": "#ffffff"
+          }
+        },
+        "heatmap": {
+          "mode": "sequential",
+          "interpolation": {
+            "scale": "linear",
+            "scaleQuantized": false,
+            "scaleLogBase": 10,
+            "scaleGamma": 1,
+            "scaleSteps": 5,
+            "colorBlend": "oklch"
+          },
+          "lightMode": {
+            "lightness": 0.72,
+            "chroma": 0.12
+          },
+          "darkMode": {
+            "lightness": 0.6,
+            "chroma": 0.09
+          },
+          "useStopAlpha": false,
+          "sequential": {
+            "stops": [
+              {
+                "position": 0,
+                "color": "#5A83D3"
+              },
+              {
+                "position": 0.5,
+                "color": "#2A2A2A"
+              },
+              {
+                "position": 1,
+                "color": "#E87A67"
+              }
+            ]
+          },
+          "divergingZero": "#f8f9fa",
+          "negative": {
+            "stops": [
+              {
+                "position": 0,
+                "color": "#1d3557"
+              },
+              {
+                "position": 0.5,
+                "color": "#457b9d"
+              },
+              {
+                "position": 1,
+                "color": "#a8dadc"
+              }
+            ]
+          },
+          "positive": {
+            "stops": [
+              {
+                "position": 0,
+                "color": "#ffe8a3"
+              },
+              {
+                "position": 0.5,
+                "color": "#f4a261"
+              },
+              {
+                "position": 1,
+                "color": "#e63946"
+              }
+            ]
+          }
+        }
+      },
+      "data": {
+        "shape": "tabular",
+        "categories": [
+          "Great White Shark",
+          "Ostrich",
+          "Camel",
+          "Atlas Moth",
+          "Giraffe",
+          "Boa Constrictor",
+          "Orca",
+          "Clownfish",
+          "Moose",
+          "Green Sea Turtle"
+        ],
+        "series": [
+          {
+            "id": "s-0",
+            "name": "Diurnal subspecies",
+            "values": [
+              73.10903680896212,
+              57.565366903789716,
+              98.67678083768946,
+              80.08989065659495,
+              29.74819449595607,
+              65.52999454032492,
+              39.75856196830562,
+              75.51371385382429,
+              100,
+              60.009265347771354
+            ]
+          },
+          {
+            "id": "s-1",
+            "name": "Seamount form",
+            "values": [
+              9.305274651910441,
+              12.709435092171088,
+              14.973829757717509,
+              5.215008308953671,
+              22.78329705141606,
+              21.49534039842728,
+              21.316892089491642,
+              19.476555454363933,
+              24.22512305081034,
+              24.411828387571443
+            ]
+          },
+          {
+            "id": "s-2",
+            "name": "Introduced subspecies",
+            "values": [
+              8.844444462853692,
+              5.554350430687604,
+              10.151587707166279,
+              5.829992836275664,
+              16.6331492038524,
+              9.80356628075358,
+              3.7403267596731222,
+              7.213319103556288,
+              7.984574208605748,
+              3.256579719428028
+            ]
+          },
+          {
+            "id": "s-3",
+            "name": "Melanistic form",
+            "values": [
+              9.79641644129776,
+              9.375774034108604,
+              5.666683033805971,
+              12.720574223248219,
+              17.216185748015526,
+              15.976744237552984,
+              6.379593392967207,
+              6.915547759416805,
+              14.315269352030707,
+              8.492329053971016
+            ]
+          },
+          {
+            "id": "s-4",
+            "name": "Migratory subspecies",
+            "values": [
+              12.34523334056534,
+              17.240595679806432,
+              20.83604841792589,
+              21.108185394485393,
+              16.372538177646767,
+              11.02677022754157,
+              12.151237310133292,
+              14.616005410797811,
+              20.607515789488556,
+              5.471686005875022
+            ]
+          },
+          {
+            "id": "s-5",
+            "name": "Littoral subspecies",
+            "values": [
+              45.0662404203926,
+              23.14927925161652,
+              19.233491261413644,
+              66.73135170525677,
+              41.00343583625258,
+              75.65531929377657,
+              52.683131958658194,
+              44.16921606674885,
+              76.86262453010575,
+              25.776547470578475
+            ]
+          },
+          {
+            "id": "s-6",
+            "name": "Captive-bred line",
+            "values": [
+              8.714240001209147,
+              20.84188358829777,
+              21.500083536095648,
+              18.288119070860695,
+              2.841084545987508,
+              2.6096014129727707,
+              9.007248760348164,
+              15.759293266196666,
+              12.978395484271957,
+              17.503350383830952
+            ]
+          },
+          {
+            "id": "s-7",
+            "name": "Savanna subspecies",
+            "values": [
+              20.21635282348464,
+              11.236646222507126,
+              16.330119366033234,
+              17.31903504452626,
+              9.962170955155075,
+              9.753630128263495,
+              19.8106396664136,
+              16.153600297053693,
+              18.661693899230606,
+              17.7489056689711
+            ]
+          },
+          {
+            "id": "s-8",
+            "name": "Lake-resident subspecies",
+            "values": [
+              34.60734729287756,
+              83.74102218576895,
+              98.84353427825636,
+              88.74113609602296,
+              24.608209419634665,
+              98.87778809675869,
+              80.82638521155758,
+              43.45947654090892,
+              93.47751475105255,
+              33.135526823915065
+            ]
+          },
+          {
+            "id": "s-9",
+            "name": "Eastern subspecies",
+            "values": [
+              4.556757606439979,
+              18.45550696229687,
+              27.949203413495244,
+              9.505156683622475,
+              14.881124825427424,
+              11.706818317308375,
+              18.119609195170263,
+              21.252240495155313,
+              23.113145130528736,
+              16.727155195031926
+            ]
+          }
+        ],
+        "provenance": {
+          "pattern": "random",
+          "seriesPattern": "sparse",
+          "seed": 42,
+          "params": {
+            "categoryCount": 10,
+            "seriesCount": 10
+          }
+        }
+      },
+      "layout": {
+        "mode": "heatmap",
+        "width": 640,
+        "height": 400,
+        "padding": {
+          "top": 16,
+          "right": 16,
+          "bottom": 16,
+          "left": 16
+        },
+        "cellWidth": 40,
+        "cellHeight": 40,
+        "lockCellSize": true,
+        "gap": 4,
+        "columnLabelOffsetX": 16,
+        "columnLabelOffsetY": 13,
+        "rowLabelOffsetX": -6,
+        "rowLabelOffsetY": 0,
+        "rowLabelWidth": 120,
+        "columnLabelBandHeight": 121
+      }
+    }
+  },
+  "editor": {
+    "selectedChart": "palette",
+    "theme": "dark",
+    "inspectorTab": "colors",
+    "paletteReturnChart": "classic"
+  }
+}

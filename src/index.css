@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
 @import 'tailwindcss';
 
 @theme inline {
@@ -9,12 +9,14 @@
   --color-foreground: var(--euclid-foreground);
   --color-muted-foreground: var(--euclid-muted-foreground);
   --color-panel: var(--euclid-panel);
+  --color-editor-shell: var(--euclid-editor-shell);
   --color-panel-elevated: var(--euclid-panel-elevated);
   --color-border: var(--euclid-border);
   --color-segment: var(--euclid-segment);
   --color-segment-active: var(--euclid-segment-active);
   --color-control: var(--euclid-control);
   --color-control-hover: var(--euclid-control-hover);
+  --color-inspector-section-hover: var(--euclid-inspector-section-hover);
   --color-accent: var(--euclid-accent);
   --color-popover: var(--euclid-popover);
   --color-switch-off: var(--euclid-switch-track-off);
@@ -30,12 +32,14 @@
   --euclid-foreground: rgba(255, 255, 255, 0.8);
   --euclid-muted-foreground: rgba(255, 255, 255, 0.3);
   --euclid-panel: rgba(255, 255, 255, 0.05);
+  --euclid-editor-shell: rgba(255, 255, 255, 0.05);
   --euclid-panel-elevated: rgba(255, 255, 255, 0.1);
   --euclid-border: rgba(255, 255, 255, 0.05);
   --euclid-segment: rgba(255, 255, 255, 0.1);
   --euclid-segment-active: #4d4d4d;
   --euclid-control: rgba(255, 255, 255, 0.05);
   --euclid-control-hover: rgba(255, 255, 255, 0.08);
+  --euclid-inspector-section-hover: rgba(255, 255, 255, 0.05);
   --euclid-accent: rgba(255, 255, 255, 0.2);
   --euclid-popover: #1a1a1a;
   --euclid-switch-track-off: rgba(0, 0, 0, 0.4);
@@ -45,24 +49,27 @@
   --euclid-segment-active-fg: rgba(255, 255, 255, 0.95);
 }
 
-:root.light {
-  --euclid-background: #f5f5f5;
+:root.light,
+.light {
+  --euclid-background: #ebebeb;
   --euclid-foreground: rgba(0, 0, 0, 0.85);
   --euclid-muted-foreground: rgba(0, 0, 0, 0.45);
   --euclid-panel: rgba(0, 0, 0, 0.04);
+  --euclid-editor-shell: #ffffff;
   --euclid-panel-elevated: rgba(0, 0, 0, 0.08);
   --euclid-border: rgba(0, 0, 0, 0.08);
   --euclid-segment: rgba(0, 0, 0, 0.06);
-  --euclid-segment-active: rgba(0, 0, 0, 0.75);
+  --euclid-segment-active: #d7d7d7;
   --euclid-control: rgba(0, 0, 0, 0.04);
   --euclid-control-hover: rgba(0, 0, 0, 0.07);
+  --euclid-inspector-section-hover: rgba(0, 0, 0, 0.08);
   --euclid-accent: rgba(0, 0, 0, 0.12);
   --euclid-popover: #ffffff;
   --euclid-switch-track-off: rgba(0, 0, 0, 0.06);
   --euclid-switch-track-on: rgba(0, 0, 0, 0.22);
   --euclid-switch-border: rgba(0, 0, 0, 0.12);
   --euclid-switch-thumb: rgba(0, 0, 0, 0.55);
-  --euclid-segment-active-fg: rgba(255, 255, 255, 0.95);
+  --euclid-segment-active-fg: rgba(0, 0, 0, 0.85);
 }
 
 html,
@@ -70,6 +77,12 @@ body,
 #root {
   height: 100%;
   margin: 0;
+}
+
+html {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 body {
@@ -133,6 +146,13 @@ body {
   right: var(--euclid-chart-inset, 24px);
 }
 
+/* Overlay track inset from host edge (e.g. case study page). */
+.euclid-scroll-host.euclid-scroll-overlay-gutter > .euclid-scroll-overlay-track {
+  top: var(--euclid-scroll-overlay-gutter, 4px);
+  right: var(--euclid-scroll-overlay-gutter, 4px);
+  bottom: var(--euclid-scroll-overlay-gutter, 4px);
+}
+
 .euclid-scroll-overlay-track {
   position: absolute;
   top: 0;
@@ -141,6 +161,13 @@ body {
   width: var(--euclid-scrollbar-size);
   pointer-events: none;
   z-index: 2;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.euclid-scroll-host:hover .euclid-scroll-overlay-track,
+.euclid-scroll-host.euclid-scroll-dragging .euclid-scroll-overlay-track {
+  opacity: 1;
 }
 
 .euclid-scroll-overlay-thumb {
@@ -152,4 +179,28 @@ body {
   background: var(--euclid-accent);
   pointer-events: auto;
   cursor: default;
+}
+
+/* Native overflow (e.g. select menus): thin scrollbar, visible on hover only. */
+.euclid-native-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.euclid-native-scroll:hover {
+  scrollbar-color: color-mix(in srgb, var(--euclid-accent) 85%, transparent) transparent;
+}
+
+.euclid-native-scroll::-webkit-scrollbar {
+  width: var(--euclid-scrollbar-size);
+  height: var(--euclid-scrollbar-size);
+}
+
+.euclid-native-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: transparent;
+}
+
+.euclid-native-scroll:hover::-webkit-scrollbar-thumb {
+  background: var(--euclid-accent);
 }

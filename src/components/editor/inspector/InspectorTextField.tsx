@@ -1,6 +1,6 @@
 import { controlSurface } from '../../../lib/controlSurface'
 import { cn } from '../../../lib/utils'
-import { inspectorField, inspectorFieldLabel } from './inspectorStyles'
+import { inspectorControlCaption, inspectorLabeledField } from './inspectorStyles'
 
 type InspectorTextFieldProps = {
   label: string
@@ -18,8 +18,8 @@ export function InspectorTextField({
   className,
 }: InspectorTextFieldProps) {
   return (
-    <div className={cn('space-y-1', inspectorField, className)}>
-      <label className={cn('block', inspectorFieldLabel)}>{label}</label>
+    <div className={cn(inspectorLabeledField, className)}>
+      <label className={cn('block', inspectorControlCaption)}>{label}</label>
       <input
         type="text"
         value={value}

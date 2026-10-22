@@ -1,16 +1,22 @@
-import iro from '@jaames/iro'
-import { ArrowUpRight } from '@phosphor-icons/react'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { ChartSpec } from '../../../chart-spec/types'
-import type { VisualizationPaletteConfig } from '../../../visualization-colors/types'
-import { resolvePalettePreview, requiredColorCount } from '../../../visualization-colors/resolve'
-import { oklchToHex } from '../../../visualization-colors/oklch'
+import { MAX_PALETTE_BASE_COUNT } from '../../../visualization-colors/constants'
+import { stripNudgedFillsFromConfig } from '../../../visualization-colors/accessibilityNudge'
+import { resolveExcessColorHandling } from '../../../visualization-colors/defaults'
+import type {
+  ExcessColorMode,
+  VisualizationPaletteConfig,
+} from '../../../visualization-colors/types'
 import type { ChartTheme } from '../../../visualization-colors/types'
 import { useEditorStore } from '../../../store/editorStore'
+import { OklchPaletteWheel } from './OklchPaletteWheel'
 import { ColorsInspectorSection } from './ColorsInspectorSection'
 import { InspectorSelect } from './InspectorSelect'
+import { SwitchRow } from './SwitchRow'
 import { SliderControl } from '../../ui/slider-control'
-
+import { AccessibilityContrastPanel } from './AccessibilityContrastPanel'
+import { colorsInspectorTooltips as T } from './colorsInspectorTooltips'
+import { InspectorReveal } from './InspectorReveal'
 type VisualizationPaletteControlProps = {
   spec: ChartSpec
   theme: ChartTheme
@@ -18,17 +24,26 @@ type VisualizationPaletteControlProps = {
   onChange: (patch: (prev: VisualizationPaletteConfig) => VisualizationPaletteConfig) => void
 }
 
-const WHEEL_SIZE = 200
-
 const formatPercent = (v: number) =>
   `${Math.round(v * 100)
     .toString()
     .padStart(2, '0')}%`
 
 const VARIANT_PROPERTY_OPTIONS = [
-  { value: 'lightness', label: 'Change lightness' },
-  { value: 'chroma', label: 'Change chroma' },
-  { value: 'hue', label: 'Change hue' },
+  { value: 'lightness', label: 'Change lightness', tooltip: T.palette.variantLightness },
+  { value: 'chroma', label: 'Change chroma', tooltip: T.palette.variantChroma },
+  { value: 'hue', label: 'Change hue', tooltip: T.palette.variantHue },
+] as const
+
+const EXCESS_VARIANT_OPTIONS = [
+  { value: 'lightness', label: 'Change lightness', tooltip: T.palette.excessModeLightness },
+  { value: 'chroma', label: 'Change chroma', tooltip: T.palette.excessModeChroma },
+  { value: 'hue', label: 'Change hue', tooltip: T.palette.excessModeHue },
+] as const
+
+const EXCESS_MODE_OPTIONS = [
+  { value: 'repeatWithShift', label: 'Repeat with shift', tooltip: T.palette.excessModeRepeat },
+  ...EXCESS_VARIANT_OPTIONS,
 ] as const
 
 function variantPropertySelectValue(
@@ -38,140 +53,133 @@ function variantPropertySelectValue(
   return 'lightness'
 }
 
+function patchExcess(
+  prev: VisualizationPaletteConfig,
+  patch: Partial<ReturnType<typeof resolveExcessColorHandling>>,
+): VisualizationPaletteConfig {
+  const nextExcess = { ...resolveExcessColorHandling(prev), ...patch }
+  return {
+    ...prev,
+    excessColorHandling: nextExcess,
+    maxBaseColors: nextExcess.enabled ? nextExcess.activateAfter : MAX_PALETTE_BASE_COUNT,
+  }
+}
+
 export function VisualizationPaletteControl({
   spec,
   theme,
   config,
   onChange,
 }: VisualizationPaletteControlProps) {
-  const mountRef = useRef<HTMLDivElement>(null)
-  const pickerRef = useRef<ReturnType<typeof iro.ColorPicker> | null>(null)
-  const configRef = useRef(config)
-  const onChangeRef = useRef(onChange)
-  configRef.current = config
-  onChangeRef.current = onChange
+  const wheelWrapRef = useRef<HTMLDivElement>(null)
+  const paletteWheelInView = useEditorStore((s) => s.ui.paletteWheelInView)
+  const setPaletteWheelInView = useEditorStore((s) => s.setPaletteWheelInView)
 
   const regenerateAllData = useEditorStore((s) => s.regenerateAllData)
   const isCustom = spec.data.provenance === null
   const categoryCount = spec.data.provenance?.params?.categoryCount ?? 6
+  const excess = resolveExcessColorHandling(config)
 
-  const count = requiredColorCount(spec)
-  const preview = resolvePalettePreview(config, theme, count)
-  const startHex = oklchToHex(
-    theme === 'light' ? config.lightMode.lightness : config.darkMode.lightness,
-    theme === 'light' ? config.lightMode.chroma : config.darkMode.chroma,
-    config.startHue,
+  const patchPalette = useCallback(
+    (patch: (prev: VisualizationPaletteConfig) => VisualizationPaletteConfig) => {
+      onChange((prev) => stripNudgedFillsFromConfig(patch(prev)))
+    },
+    [onChange],
   )
 
   useEffect(() => {
-    const mount = mountRef.current
-    if (!mount) return
+    const target = wheelWrapRef.current
+    if (!target) return
 
-    const wheelColors = [startHex, ...preview.slice(0, Math.min(count, 11))]
-    const picker = iro.ColorPicker(mount, {
-      width: WHEEL_SIZE,
-      color: startHex,
-      colors: wheelColors,
-      layout: [{ component: iro.ui.Wheel, options: {} }],
-    })
-    pickerRef.current = picker
-    picker.setActiveColor(0)
-
-    const onInput = (color: iro.Color) => {
-      const idx = picker.color.index
-      if (idx !== 0) {
-        picker.setColors([startHex, ...preview.slice(0, Math.min(count, 11))], 0)
-        return
-      }
-      const h = color.hsv.h ?? configRef.current.startHue
-      onChangeRef.current((prev) => ({ ...prev, startHue: h }))
-    }
-
-    picker.on('color:change', onInput)
-    picker.on('input:end', onInput)
-
+    const root = target.closest('.euclid-scroll-viewport')
+    let debounce = 0
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return
+        window.clearTimeout(debounce)
+        debounce = window.setTimeout(
+          () => setPaletteWheelInView(entry.isIntersecting),
+          80,
+        )
+      },
+      { root: root ?? null, threshold: 0.05 },
+    )
+    observer.observe(target)
     return () => {
-      picker.off('color:change', onInput)
-      picker.off('input:end', onInput)
-      pickerRef.current = null
-      mount.innerHTML = ''
+      window.clearTimeout(debounce)
+      observer.disconnect()
+      setPaletteWheelInView(true)
     }
-  }, [startHex, preview.join(','), count])
-
-  const aboutLink = (
-    <a
-      href="https://oklch.com"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-muted-foreground transition-colors duration-100 hover:text-foreground"
-    >
-      About
-      <ArrowUpRight size={14} weight="bold" aria-hidden />
-    </a>
-  )
+  }, [setPaletteWheelInView])
 
   return (
     <>
-      <ColorsInspectorSection title="OKLCH color space" headerRight={aboutLink} className="gap-3">
-        <div className="mx-auto aspect-square w-full max-w-[200px]">
-          <div ref={mountRef} className="iro-host [&_.IroColorPicker]:!bg-transparent" />
-        </div>
+      <ColorsInspectorSection title="OKLCH color space" titleTooltip={T.section.oklch}>
+        <OklchPaletteWheel
+          spec={spec}
+          theme={theme}
+          config={config}
+          onChange={patchPalette}
+          wheelWrapRef={wheelWrapRef}
+          interactive={paletteWheelInView}
+          tooltip={T.palette.wheel}
+        />
 
-        <div className="flex w-full justify-center gap-0.5 rounded-[30px] bg-control p-1">
-          {preview.slice(0, 8).map((hex, i) => (
-            <div
-              key={i}
-              className="size-5 shrink-0 rounded-full border border-border/40"
-              style={{ background: hex }}
-              title={`Color ${i + 1}`}
-            />
-          ))}
-        </div>
+        <AccessibilityContrastPanel
+          spec={spec}
+          theme={theme}
+          config={config}
+          onChange={onChange}
+        />
 
         <SliderControl
           label="Base Count"
+          tooltip={T.palette.baseCount}
           value={categoryCount}
           min={2}
-          max={16}
+          max={MAX_PALETTE_BASE_COUNT}
           step={1}
           readOnly={isCustom}
-          onChange={(v) => regenerateAllData({ categoryCount: v })}
+          onChange={(v) => regenerateAllData({ categoryCount: v, seriesCount: v })}
         />
         <SliderControl
           label="Key rotation"
+          tooltip={T.palette.keyRotation}
           value={config.startHue}
           min={0}
           max={360}
           step={1}
           formatValue={(v) => `${Math.round(v)}°`}
-          onChange={(startHue) => onChange((prev) => ({ ...prev, startHue }))}
+          onChange={(startHue) => patchPalette((prev) => ({ ...prev, startHue }))}
         />
       </ColorsInspectorSection>
 
-      <ColorsInspectorSection title="Correction">
+      <ColorsInspectorSection title="Perception Correction" titleTooltip={T.section.perception}>
         <SliderControl
-          label="Lightness correction"
+          label="Lightness"
+          tooltip={T.palette.lightnessCorrection}
           value={config.base.lightnessCorrection}
           min={0}
           max={1}
           step={0.01}
           formatValue={formatPercent}
           onChange={(lightnessCorrection) =>
-            onChange((prev) => ({
+            patchPalette((prev) => ({
               ...prev,
               base: { ...prev.base, lightnessCorrection },
             }))
           }
         />
         <SliderControl
-          label="Chroma correction"
+          label="Chroma"
+          tooltip={T.palette.chromaCorrection}
           value={config.base.chromaCorrection}
           min={0}
           max={1}
           step={0.01}
           formatValue={formatPercent}
           onChange={(chromaCorrection) =>
-            onChange((prev) => ({
+            patchPalette((prev) => ({
               ...prev,
               base: { ...prev.base, chromaCorrection },
             }))
@@ -179,58 +187,174 @@ export function VisualizationPaletteControl({
         />
       </ColorsInspectorSection>
 
-      <ColorsInspectorSection title="Light Theme">
+      <ColorsInspectorSection title="Hue separation" titleTooltip={T.section.hueSeparation}>
+        <SwitchRow
+          label="Smart color ordering"
+          tooltip={T.palette.smartOrdering}
+          checked={
+            config.hueLayout === 'greedy' && (config.paletteRevision ?? 1) >= 2
+          }
+          onCheckedChange={(smart) =>
+            patchPalette((prev) => ({
+              ...prev,
+              hueLayout: smart ? 'greedy' : 'even',
+              paletteRevision: 2,
+            }))
+          }
+        />
+        <SliderControl
+          label="Separation"
+          tooltip={T.palette.hueSeparation}
+          value={Math.min(1, Math.max(0.25, config.distanceWeights.hue))}
+          min={0.25}
+          max={1}
+          step={0.05}
+          formatValue={(v) => `${v.toFixed(2)}×`}
+          onChange={(hue) =>
+            patchPalette((prev) => ({
+              ...prev,
+              distanceWeights: { ...prev.distanceWeights, hue },
+            }))
+          }
+        />
+      </ColorsInspectorSection>
+
+      <ColorsInspectorSection
+        title="Light Theme"
+        titleTooltip={T.section.lightTheme}
+        disabled={theme === 'dark'}
+      >
         <SliderControl
           label="Light brightness"
+          tooltip={T.palette.lightBrightness}
           value={config.lightMode.lightness}
           min={0.2}
           max={0.9}
           step={0.01}
+          readOnly={theme === 'dark'}
           onChange={(lightness) =>
-            onChange((prev) => ({ ...prev, lightMode: { ...prev.lightMode, lightness } }))
+            patchPalette((prev) => ({ ...prev, lightMode: { ...prev.lightMode, lightness } }))
           }
         />
         <SliderControl
           label="Light chroma"
+          tooltip={T.palette.lightChroma}
           value={config.lightMode.chroma}
           min={0.02}
           max={0.28}
           step={0.01}
+          readOnly={theme === 'dark'}
           onChange={(chroma) =>
-            onChange((prev) => ({ ...prev, lightMode: { ...prev.lightMode, chroma } }))
+            patchPalette((prev) => ({ ...prev, lightMode: { ...prev.lightMode, chroma } }))
           }
         />
       </ColorsInspectorSection>
 
-      <ColorsInspectorSection title="Dark Theme">
+      <ColorsInspectorSection
+        title="Dark Theme"
+        titleTooltip={T.section.darkTheme}
+        disabled={theme === 'light'}
+      >
         <SliderControl
           label="Dark brightness"
+          tooltip={T.palette.darkBrightness}
           value={config.darkMode.lightness}
           min={0.2}
           max={0.9}
           step={0.01}
+          readOnly={theme === 'light'}
           onChange={(darkness) =>
-            onChange((prev) => ({ ...prev, darkMode: { ...prev.darkMode, lightness: darkness } }))
+            patchPalette((prev) => ({ ...prev, darkMode: { ...prev.darkMode, lightness: darkness } }))
           }
         />
         <SliderControl
           label="Dark chroma"
+          tooltip={T.palette.darkChroma}
           value={config.darkMode.chroma}
           min={0.02}
           max={0.28}
           step={0.01}
+          readOnly={theme === 'light'}
           onChange={(chroma) =>
-            onChange((prev) => ({ ...prev, darkMode: { ...prev.darkMode, chroma } }))
+            patchPalette((prev) => ({ ...prev, darkMode: { ...prev.darkMode, chroma } }))
           }
         />
       </ColorsInspectorSection>
 
-      <ColorsInspectorSection title="Step Variants">
+      <ColorsInspectorSection title="Excess Color (Experimental)" titleTooltip={T.section.excessColor}>
+        <SwitchRow
+          label="Handle excess colors"
+          tooltip={T.palette.excessEnabled}
+          checked={excess.enabled}
+          onCheckedChange={(enabled) => patchPalette((prev) => patchExcess(prev, { enabled }))}
+        />
+        <InspectorReveal show={excess.enabled}>
+          <SliderControl
+            label="Activate after"
+            tooltip={T.palette.excessActivateAfter}
+            value={excess.activateAfter}
+            min={2}
+            max={MAX_PALETTE_BASE_COUNT}
+            step={1}
+            formatValue={(v) => `${Math.round(v)} colors`}
+            onChange={(activateAfter) =>
+              patchPalette((prev) => patchExcess(prev, { activateAfter }))
+            }
+          />
+          <InspectorSelect
+            value={excess.mode}
+            tooltip={T.palette.excessEnabled}
+            options={[...EXCESS_MODE_OPTIONS]}
+            onChange={(mode) =>
+              patchPalette((prev) => patchExcess(prev, { mode: mode as ExcessColorMode }))
+            }
+          />
+          <InspectorReveal show={excess.mode === 'repeatWithShift'}>
+            <SliderControl
+              label="Shift amount"
+              tooltip={T.palette.excessShift}
+              value={excess.shiftDegrees}
+              min={1}
+              max={180}
+              step={1}
+              formatValue={(v) => `${Math.round(v)}°`}
+              onChange={(shiftDegrees) =>
+                patchPalette((prev) => patchExcess(prev, { shiftDegrees }))
+              }
+            />
+          </InspectorReveal>
+          <InspectorReveal show={excess.mode !== 'repeatWithShift'}>
+            <SliderControl
+              label="Change value"
+              tooltip={T.palette.excessStep}
+              value={excess.step}
+              min={0.02}
+              max={0.2}
+              step={0.01}
+              onChange={(step) => patchPalette((prev) => patchExcess(prev, { step }))}
+            />
+          </InspectorReveal>
+          <SliderControl
+            label="Opacity change"
+            tooltip={T.palette.excessOpacity}
+            value={excess.opacityStep}
+            min={0}
+            max={0.35}
+            step={0.01}
+            onChange={(opacityStep) =>
+              patchPalette((prev) => patchExcess(prev, { opacityStep }))
+            }
+          />
+        </InspectorReveal>
+      </ColorsInspectorSection>
+
+      <ColorsInspectorSection title="Step Variants" titleTooltip={T.section.stepVariants} defaultOpen={false}>
         <InspectorSelect
           value={variantPropertySelectValue(config.variation.property)}
+          tooltip={T.palette.variantProperty}
           options={[...VARIANT_PROPERTY_OPTIONS]}
           onChange={(property) =>
-            onChange((prev) => ({
+            patchPalette((prev) => ({
               ...prev,
               variation: {
                 ...prev.variation,
@@ -241,12 +365,13 @@ export function VisualizationPaletteControl({
         />
         <SliderControl
           label="Change value"
+          tooltip={T.palette.variantStep}
           value={config.variation.step}
           min={0.02}
           max={0.2}
           step={0.01}
           onChange={(step) =>
-            onChange((prev) => ({
+            patchPalette((prev) => ({
               ...prev,
               variation: { ...prev.variation, step },
             }))
@@ -254,12 +379,13 @@ export function VisualizationPaletteControl({
         />
         <SliderControl
           label="Opacity change"
+          tooltip={T.palette.variantOpacity}
           value={config.variation.opacityStep}
           min={0}
           max={0.35}
           step={0.01}
           onChange={(opacityStep) =>
-            onChange((prev) => ({
+            patchPalette((prev) => ({
               ...prev,
               variation: { ...prev.variation, opacityStep },
             }))
